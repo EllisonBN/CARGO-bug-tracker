@@ -98,8 +98,9 @@
     .tchip input:checked + label { border-color:var(--blue); background:#e8f4ff; color:var(--navy); font-weight:700; box-shadow:0 4px 12px rgba(0,120,216,.15); }
 
     /* INTEGRATION FIELDS */
-    .int-fields { overflow:hidden; max-height:0; opacity:0; transition:max-height .35s ease, opacity .28s ease, margin .28s ease; margin-top:0; }
-    .int-fields.open { max-height:300px; opacity:1; margin-top:18px; }
+    .int-fields { display:none; margin-top:0; }
+    .int-fields.open { display:block; margin-top:18px; animation:slideDown .3s ease; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
     .int-box { background:#f0f7ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:18px 20px; }
     .int-box-lbl { font-size:12px; font-weight:600; color:var(--blue); text-transform:uppercase; letter-spacing:.055em; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
 
@@ -258,7 +259,7 @@
             </div>
             <div class="tchip">
               <input type="radio" name="reqType" id="typeInt"  value="אינטגרציה"/>
-              <label for="typeInt"><span class="t-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg></span><span>משימת אינטגרציה</span></label>
+              <label for="typeInt"><span class="t-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg></span><span>אינטגרציה</span></label>
             </div>
           </div>
         </div>
@@ -412,7 +413,7 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/a/macros/cargo.co.il/s/AKfycbxgDEoaoxXRc0C4KITCOeWB_Y9Dw-JX1e3blzVh4ATKMr0P9oZyXtY-kHQWsE5roYemXw/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxask_HhSovpQeHlGIfkqGONY0F_ywx1elweznDl2M2cnDuKU5eChkitYS_vuhEHvB99A/exec';
 
 // ── Auto date ──────────────────────────────────────────
 const today   = new Date();
@@ -427,8 +428,10 @@ let filesRequired = false;
 
 function updateByType(type) {
   currentType = type;
-  const isInt     = type === 'אינטגרציה';
-  const isBugFeat = type === 'תקלה' || type === "פיצ'ר";
+  // compare by id to avoid any Hebrew string encoding issues
+  const selId    = document.querySelector('input[name="reqType"]:checked')?.id;
+  const isInt     = selId === 'typeInt';
+  const isBugFeat = selId === 'typeBug' || selId === 'typeFeat';
 
   // ── Integration slide-in ──
   document.getElementById('intFields').classList.toggle('open', isInt);
@@ -565,9 +568,12 @@ function renderFiles() {
 // ══════════════════════════════════════════════════════
 function toast(msg, type='ok') {
   const el = document.getElementById('toast');
-  el.innerHTML = `<span class="toast-icon">${type===\'ok\'?`<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>`:`<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6M9 9l6 6\"/></svg>`}</span><span>${msg}</span>`;
-  el.className = `toast ${type} show`;
-  setTimeout(() => el.classList.remove('show'), 4500);
+  const okIcon  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  const errIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>';
+  const icon = type === 'ok' ? okIcon : errIcon;
+  el.innerHTML = '<span class="toast-icon">' + icon + '</span><span>' + msg + '</span>';
+  el.className = 'toast ' + type + ' show';
+  setTimeout(function(){ el.classList.remove('show'); }, 4500);
 }
 function setP(v) { document.getElementById('pbar').style.width = v+'%'; }
 function toB64(file) {
@@ -652,12 +658,19 @@ document.getElementById('mainForm').addEventListener('submit', async e => {
       files:          filesData
     };
 
+    // Apps Script write — use text/plain so the header survives no-cors
+    // (application/json is silently dropped in no-cors mode).
+    // We fully await this so the Sheet write + Drive upload finish
+    // before we show the success screen.
     await fetch(SCRIPT_URL, {
       method:  'POST',
       mode:    'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body:    JSON.stringify(payload)
     });
+
+    // small settle delay to ensure the request was fully flushed
+    await new Promise(function(res){ setTimeout(res, 600); });
 
     setP(100);
 
