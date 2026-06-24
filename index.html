@@ -35,6 +35,20 @@
     .logo-fallback { height:36px; display:none; align-items:center; }
     .hd-sep { width:1px; height:28px; background:rgba(255,255,255,.18); }
     .hd-label { color:rgba(255,255,255,.65); font-size:14px; font-weight:500; }
+    .hd-right { margin-inline-start:auto; }
+    .dash-link { color:#ffb84a; font-size:13px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border:1px solid rgba(255,184,74,.4); border-radius:8px; transition:background .18s; }
+    .dash-link:hover { background:rgba(255,184,74,.12); }
+
+    /* LOGIN GATE */
+    .gate { position:fixed; inset:0; background:linear-gradient(135deg,#071d33,#0a4a82); display:flex; align-items:center; justify-content:center; z-index:300; }
+    .gate-card { background:white; border-radius:16px; padding:40px 44px; box-shadow:0 20px 60px rgba(0,0,0,.3); width:min(380px,90vw); text-align:center; }
+    .gate-title { font-size:18px; font-weight:700; color:#082138; margin-bottom:4px; margin-top:10px; }
+    .gate-sub { font-size:13px; color:#8fa3b8; margin-bottom:24px; }
+    .gate-input { width:100%; padding:13px 16px; border:1.5px solid #cddaeb; border-radius:10px; font-family:'Rubik',sans-serif; font-size:15px; text-align:center; letter-spacing:2px; margin-bottom:14px; direction:ltr; }
+    .gate-input:focus { outline:none; border-color:#0078d8; box-shadow:0 0 0 3px rgba(0,120,216,.13); }
+    .gate-btn { width:100%; padding:13px; background:#0078d8; color:white; border:none; border-radius:10px; font-family:'Rubik',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:background .18s; }
+    .gate-btn:hover { background:#0062b0; }
+    .gate-err { color:#dc2626; font-size:13px; margin-top:12px; min-height:18px; }
 
     /* HERO */
     .hero { background:linear-gradient(130deg,#071d33 0%,var(--navy) 55%,#0a4a82 100%); padding:36px 24px 52px; text-align:center; position:relative; overflow:hidden; }
@@ -207,6 +221,26 @@
 </head>
 <body>
 
+<!-- LOGIN GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="logo-fallback" style="display:flex;justify-content:center">
+      <svg width="120" height="34" viewBox="0 0 130 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="10" width="18" height="14" rx="2" fill="#ffb84a"/>
+        <path d="M20 14h8l4 6v4H20V14z" fill="#082138" opacity=".9"/>
+        <circle cx="7" cy="25" r="3" fill="#082138"/>
+        <circle cx="26" cy="25" r="3" fill="#082138"/>
+        <text x="38" y="26" font-family="Rubik,sans-serif" font-weight="800" font-size="20" fill="#082138" letter-spacing="2">CARGO</text>
+      </svg>
+    </div>
+    <div class="gate-title">מערכת ניהול משימות ותקלות</div>
+    <div class="gate-sub">הזינו סיסמה לכניסה</div>
+    <input type="password" class="gate-input" id="pwInput" placeholder="••••••" autocomplete="off" />
+    <button class="gate-btn" id="pwBtn">כניסה</button>
+    <div class="gate-err" id="pwErr"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- HEADER -->
@@ -224,6 +258,12 @@
   </div>
   <div class="hd-sep"></div>
   <span class="hd-label">מערכת ניהול משימות ותקלות</span>
+  <div class="hd-right">
+    <a class="dash-link" href="./dashboard.html">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      לוח בקרה
+    </a>
+  </div>
 </header>
 
 <!-- HERO -->
@@ -413,7 +453,26 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxask_HhSovpQeHlGIfkqGONY0F_ywx1elweznDl2M2cnDuKU5eChkitYS_vuhEHvB99A/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMzl2n5MwJkN_JDctAM7fcLNwrYtuDqmzWJLJHVz63S0jQr7o0winHY7rrTqo-OEPdwg/exec';
+const FORM_PASSWORD = 'cargo2026';   // 🔧 שנו לסיסמה הרצויה
+
+// ── Login gate ─────────────────────────────────────────
+function tryFormLogin() {
+  if (document.getElementById('pwInput').value === FORM_PASSWORD) {
+    sessionStorage.setItem('cargo_form_auth', '1');
+    document.getElementById('gate').style.display = 'none';
+  } else {
+    document.getElementById('pwErr').textContent = 'סיסמה שגויה';
+    document.getElementById('pwInput').value = '';
+  }
+}
+document.getElementById('pwBtn').addEventListener('click', tryFormLogin);
+document.getElementById('pwInput').addEventListener('keydown', function(e){ if(e.key==='Enter') tryFormLogin(); });
+if (sessionStorage.getItem('cargo_form_auth') === '1') {
+  document.getElementById('gate').style.display = 'none';
+} else {
+  document.getElementById('pwInput').focus();
+}
 
 // ── Auto date ──────────────────────────────────────────
 const today   = new Date();
