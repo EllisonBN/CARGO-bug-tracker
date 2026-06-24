@@ -15,7 +15,8 @@
       --g400:#8fa3b8; --g600:#4a637a; --g800:#1b2f42;
       --rad:12px; --shd:0 4px 28px rgba(8,33,56,.11);
     }
-    body { font-family:'Rubik',sans-serif; background:var(--bg); color:var(--g800); min-height:100vh; direction:rtl; }
+    html { overflow-x:clip; overscroll-behavior-x:none; }
+    body { font-family:'Rubik',sans-serif; background:var(--bg); color:var(--g800); min-height:100vh; direction:rtl; overflow-x:clip; overscroll-behavior-x:none; width:100%; max-width:100%; }
 
     /* HEADER */
     .header { background:var(--navy); padding:14px 28px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:50; }
@@ -248,7 +249,7 @@ var activeStatusFilter = '';
 function tryLogin() {
   var val = document.getElementById('pwInput').value;
   if (val === PASSWORD) {
-    sessionStorage.setItem('cargo_dash_auth', '1');
+    sessionStorage.setItem('cargo_auth', '1');
     showDash();
   } else {
     document.getElementById('pwErr').textContent = 'סיסמה שגויה';
@@ -266,7 +267,7 @@ function showDash() {
 }
 
 // auto-skip gate if already authed this session
-if (sessionStorage.getItem('cargo_dash_auth') === '1') showDash();
+if (sessionStorage.getItem('cargo_auth') === '1') showDash();
 else document.getElementById('pwInput').focus();
 
 // ══════════════════════════════════════════════════════
