@@ -27,7 +27,8 @@
       --shd:     0 4px 28px rgba(8,33,56,.11);
     }
 
-    body { font-family:'Rubik',sans-serif; background:var(--bg); color:var(--g800); min-height:100vh; direction:rtl; }
+    html { overflow-x:clip; overscroll-behavior-x:none; }
+    body { font-family:'Rubik',sans-serif; background:var(--bg); color:var(--g800); min-height:100vh; direction:rtl; overflow-x:clip; overscroll-behavior-x:none; width:100%; max-width:100%; }
 
     /* HEADER */
     .header { background:var(--navy); padding:16px 32px; display:flex; align-items:center; gap:16px; }
@@ -188,7 +189,7 @@
     .submit-btn:disabled { background:var(--g400); cursor:not-allowed; box-shadow:none; }
 
     /* TOAST */
-    .toast { position:fixed; top:22px; left:22px; padding:14px 20px; border-radius:10px; font-size:14px; font-weight:600; box-shadow:0 8px 28px rgba(0,0,0,.14); z-index:1000; display:flex; align-items:center; gap:10px; max-width:360px; transform:translateX(-130%); transition:transform .3s cubic-bezier(.22,.61,.36,1); }
+    .toast { position:fixed; top:22px; left:12px; padding:14px 20px; border-radius:10px; font-size:14px; font-weight:600; box-shadow:0 8px 28px rgba(0,0,0,.14); z-index:1000; display:flex; align-items:center; gap:10px; max-width:min(360px, calc(100vw - 24px)); transform:translateX(-130%); transition:transform .3s cubic-bezier(.22,.61,.36,1); }
     .toast.show  { transform:translateX(0); }
     .toast.ok    { background:white; border-right:4px solid #22c55e; color:#166534; }
     .toast.err   { background:white; border-right:4px solid #ef4444; color:#991b1b; }
@@ -451,7 +452,7 @@ const FORM_PASSWORD = 'cargo2026';   // 🔧 שנו לסיסמה הרצויה
 // ── Login gate ─────────────────────────────────────────
 function tryFormLogin() {
   if (document.getElementById('pwInput').value === FORM_PASSWORD) {
-    sessionStorage.setItem('cargo_form_auth', '1');
+    sessionStorage.setItem('cargo_auth', '1');
     document.getElementById('gate').style.display = 'none';
   } else {
     document.getElementById('pwErr').textContent = 'סיסמה שגויה';
@@ -460,7 +461,7 @@ function tryFormLogin() {
 }
 document.getElementById('pwBtn').addEventListener('click', tryFormLogin);
 document.getElementById('pwInput').addEventListener('keydown', function(e){ if(e.key==='Enter') tryFormLogin(); });
-if (sessionStorage.getItem('cargo_form_auth') === '1') {
+if (sessionStorage.getItem('cargo_auth') === '1') {
   document.getElementById('gate').style.display = 'none';
 } else {
   document.getElementById('pwInput').focus();
