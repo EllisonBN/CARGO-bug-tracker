@@ -297,6 +297,12 @@
           </div>
         </div>
 
+        <!-- Customer name — optional, shown for ALL request types -->
+        <div class="field c2">
+          <label>שם לקוח / עסק <span class="opt">(לא חובה)</span></label>
+          <input type="text" id="customerName" placeholder='לדוג׳ – "מגה ספורט" / "חברת כהן"' />
+        </div>
+
         <!-- Integration extra fields — slide in/out -->
         <div class="c2">
           <div class="int-fields" id="intFields">
@@ -306,11 +312,7 @@
                 פרטי אינטגרציה
               </div>
               <div class="grid">
-                <div class="field">
-                  <label id="custLbl">שם לקוח / עסק <span class="req">*</span></label>
-                  <input type="text" id="customerName" placeholder='לדוג׳ – "מגה ספורט" / "חברת כהן"' />
-                </div>
-                <div class="field">
+                <div class="field c2">
                   <label>איש קשר <span class="opt">(לא חובה)</span></label>
                   <input type="text" id="contactPerson" placeholder="שם + טלפון / מייל" />
                 </div>
@@ -388,7 +390,7 @@
         </div>
         <div class="field c2">
           <label>סטטוס</label>
-          <div class="status-badge"><div class="s-dot"></div>פתוח ביצירה — ימולא אוטומטית</div>
+          <div class="status-badge"><div class="s-dot"></div>פתוח — ימולא אוטומטית</div>
         </div>
       </div>
 
@@ -446,7 +448,7 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzbAbwnhyaGSlKKGY3FDYUonISn0xtUh0Xj5joE6Z-WSooqWhpSH5NAAX7lBr4JQm-yXQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2abP-oprD_sXqzLvo6EL2Ts_85LGZgh_zfzUZzVtg4DxqG48mfZ1zwEReuFP2_h6auw/exec';
 const FORM_PASSWORD = 'cargo2026';   // 🔧 שנו לסיסמה הרצויה
 
 // ── Login gate ─────────────────────────────────────────
@@ -487,7 +489,6 @@ function updateByType(type) {
 
   // ── Integration slide-in ──
   document.getElementById('intFields').classList.toggle('open', isInt);
-  document.getElementById('customerName').required = isInt;
 
   // ── Files required for bug / feature ──
   filesRequired = isBugFeat;
@@ -669,7 +670,6 @@ document.getElementById('mainForm').addEventListener('submit', async e => {
   if (!maarehet)            { toast('נא להזין מערכת / פרויקט', 'err'); return; }
   if (!teur)                { toast('נא להזין תיאור', 'err'); return; }
   if (!adifut)              { toast('נא לבחור עדיפות', 'err'); return; }
-  if (isInt && !customerName) { toast('נא להזין שם לקוח / עסק', 'err'); return; }
   if (filesRequired && files.length === 0) {
     refreshUploadZone(); // make sure red shows
     toast('נדרשת צרופת תמונה או וידאו לתיעוד התקלה', 'err');
@@ -700,12 +700,12 @@ document.getElementById('mainForm').addEventListener('submit', async e => {
       mishima,
       gorumYozem,
       adifut,
-      status:         'פתוח ביצירה',
+      status:         'פתוח',
       tarichBakasha:  dateStr,
       maarehet,
       mispacMisloach: shippingNums.join(', '),
       teur,
-      customerName:   isInt ? customerName  : '',
+      customerName:   customerName,
       contactPerson:  isInt ? contactPerson : '',
       files:          filesData
     };
