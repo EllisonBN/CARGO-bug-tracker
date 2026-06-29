@@ -227,15 +227,20 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzbAbwnhyaGSlKKGY3FDYUonISn0xtUh0Xj5joE6Z-WSooqWhpSH5NAAX7lBr4JQm-yXQ/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2abP-oprD_sXqzLvo6EL2Ts_85LGZgh_zfzUZzVtg4DxqG48mfZ1zwEReuFP2_h6auw/exec';
 var PASSWORD   = 'cargo2026';   // 🔧 שנו לסיסמה הרצויה
 
 // ── status colors ──────────────────────────────────────
 var STATUS_COLORS = {
+  'פתוח':    '#3b82f6',  // כחול
+  'בטיפול':  '#f59e0b',  // כתום
+  'טופל':    '#06b6d4',  // טורקיז – פיתוח סיים, ממתין לאישור העסק
+  'נסגר':    '#22c55e',  // ירוק
+  'לא טופל': '#ef4444',  // אדום
+  'בבדיקות': '#a855f7',  // סגול
+  // legacy
   'פתוח ביצירה': '#3b82f6',
-  'בטיפול':      '#f59e0b',
   'ממתין':       '#a855f7',
-  'נסגר':        '#22c55e',
   'בוטל':        '#94a3b8'
 };
 function statusColor(s){ return STATUS_COLORS[s] || '#64748b'; }
@@ -423,9 +428,9 @@ function renderTable() {
   }
 
   var html = '<div class="table-scroll"><table><thead><tr>' +
-    '<th>#</th><th>סוג</th><th>משימה</th><th>סטטוס</th><th>עדיפות</th>' +
+    '<th>#</th><th>סוג</th><th>משימה</th><th>סטטוס</th><th>שם מטפל</th><th>עדיפות</th>' +
     '<th>גורם יוזם</th><th class="col-hide">מערכת</th><th class="col-hide">לקוח</th>' +
-    '<th class="col-hide">תאריך</th><th>קבצים</th>' +
+    '<th class="col-hide">תאריך</th><th>קבצים</th><th>Jira</th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(function(t){
@@ -434,12 +439,14 @@ function renderTable() {
     html += '<td>' + typeBadge(t.type) + '</td>';
     html += '<td class="td-title">' + esc(t.title) + (t.description?'<div class="td-desc">'+esc(t.description)+'</div>':'') + '</td>';
     html += '<td>' + statusBadge(t.status) + '</td>';
+    html += '<td>' + (t.handler ? esc(t.handler) : '<span style="color:var(--g400)">—</span>') + '</td>';
     html += '<td>' + priBadge(t.priority) + '</td>';
     html += '<td>' + esc(t.initiator) + '</td>';
     html += '<td class="col-hide">' + esc(t.system) + '</td>';
     html += '<td class="col-hide">' + esc(t.customer || '—') + '</td>';
     html += '<td class="col-hide">' + esc(t.date) + '</td>';
     html += '<td>' + filesCell(t.files) + '</td>';
+    html += '<td>' + jiraCell(t.jira) + '</td>';
     html += '</tr>';
   });
 
@@ -467,6 +474,14 @@ function filesCell(f) {
   var links = String(f).split('\n').filter(function(x){return x.indexOf('http')===0;});
   if (links.length === 0) return '<span style="color:var(--g400)">—</span>';
   return '<a class="files-link" href="'+links[0]+'" target="_blank">'+links.length+' קבצים ↗</a>';
+}
+function jiraCell(j) {
+  if (!j) return '<span style="color:var(--g400)">—</span>';
+  var v = String(j).trim();
+  if (v.indexOf('http') === 0) {
+    return '<a class="files-link" href="'+esc(v)+'" target="_blank">Jira ↗</a>';
+  }
+  return esc(v);
 }
 function esc(s) {
   if (s === null || s === undefined) return '';
