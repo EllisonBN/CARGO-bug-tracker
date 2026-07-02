@@ -332,19 +332,46 @@ var activeStatusFilter = '';
 // ══════════════════════════════════════════════════════
 function decodeJwt(t){ try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e){ return {}; } }
 
-function onGoogleCredential(resp){
-  var token = resp && resp.credential;
-  if (!token) { document.getElementById('pwErr').textContent = 'ההתחברות נכשלה, נסו שוב'; return; }
+// shared login across form + dashboard (same origin). Token self-expires (~1h).
+var AUTH_KEY = 'cargo_gauth';
+function saveAuth(token){ try { localStorage.setItem(AUTH_KEY, token); } catch(e){} }
+function clearAuth(){ try { localStorage.removeItem(AUTH_KEY); } catch(e){} }
+function tokenValid(payload){
+  if (!payload || !payload.email) return false;
+  if (ALLOWLIST.indexOf(String(payload.email).toLowerCase()) === -1) return false;
+  if (payload.exp && (payload.exp * 1000) < Date.now()) return false;   // expired
+  return true;
+}
+
+function acceptLogin(token){
   var payload = decodeJwt(token);
   var email = String(payload.email || '').toLowerCase();
-  if (ALLOWLIST.indexOf(email) === -1) {
-    document.getElementById('pwErr').textContent = 'לחשבון ' + (email||'') + ' אין הרשאת גישה למערכת.';
-    return;
+  if (!tokenValid(payload)) {
+    clearAuth();
+    document.getElementById('pwErr').textContent = 'לחשבון ' + (email||'') + ' אין הרשאת גישה (או שההתחברות פגה).';
+    return false;
   }
   ID_TOKEN = token;
   MY_EMAIL = email;
   IS_ADMIN = ADMINS.indexOf(email) > -1;
+  saveAuth(token);
   showDash();
+  return true;
+}
+
+function onGoogleCredential(resp){
+  var token = resp && resp.credential;
+  if (!token) { document.getElementById('pwErr').textContent = 'ההתחברות נכשלה, נסו שוב'; return; }
+  acceptLogin(token);
+}
+
+// try a previously-saved sign-in (from this page or the form) before showing the gate
+function tryStoredAuth(){
+  var token = null;
+  try { token = localStorage.getItem(AUTH_KEY); } catch(e){}
+  if (!token) return false;
+  if (!tokenValid(decodeJwt(token))) { clearAuth(); return false; }
+  return acceptLogin(token);
 }
 
 function initGoogle(){
@@ -353,7 +380,8 @@ function initGoogle(){
   google.accounts.id.renderButton(document.getElementById('gBtn'),
     { theme:'filled_blue', size:'large', text:'signin_with', shape:'pill', locale:'he' });
 }
-initGoogle();
+tryStoredAuth();   // auto-enter if already signed in on the form/dashboard
+initGoogle();      // render the button in case there's no valid saved sign-in
 
 function showDash() {
   document.getElementById('gate').style.display = 'none';
