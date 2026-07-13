@@ -139,6 +139,16 @@
     .td-num { font-weight:700; color:var(--navy); text-align:center; }
     .td-title { font-weight:500; max-width:280px; }
     .td-desc { color:var(--g600); font-size:12.5px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .td-title { cursor:default; }
+    #taskPreview {
+      position:fixed; z-index:300; max-width:440px; min-width:220px;
+      background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+      box-shadow:0 12px 40px rgba(15,23,42,.18); padding:14px 16px;
+      display:none; pointer-events:none; direction:rtl;
+      max-height:60vh; overflow:hidden;
+    }
+    #taskPreview .tp-title { font-weight:700; color:var(--navy); font-size:14px; margin-bottom:8px; line-height:1.5; }
+    #taskPreview .tp-desc { color:var(--g600); font-size:13px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
 
     /* BADGES */
     .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
@@ -222,24 +232,18 @@
     </div>
   </div>
 
-  <!-- STATIC SPRINT TABLE (מתעדכן ידנית מתוך Release Notes) -->
+  <!-- LIVE SPRINT TABLE (from Jira board via backend) -->
   <div class="sprint-card">
     <div class="sprint-head">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      ספרינט נוכחי — Sprint 1
+      <span id="sprintTitle">ספרינט נוכחי</span>
     </div>
-    <div class="sprint-sub">מתעדכן ידנית · מתוך <a href="https://cargo-ai-tech.atlassian.net/wiki/external/MjdiNjg5MWJhODQ5NDgzNWJlMWQ4MDE2MWNmMjdiMjU" target="_blank" style="color:var(--blue)">Release Notes</a></div>
+    <div class="sprint-sub">מתעדכן אוטומטית מ-<a href="https://cargo-ai-tech.atlassian.net/jira/software/c/projects/CARGO/boards/34" target="_blank" style="color:var(--blue)">לוח Jira</a> · <span id="sprintCount">—</span></div>
     <div style="overflow-x:auto">
     <table class="sprint-table">
       <thead><tr><th>פריט / Jira</th><th>תיאור</th><th>סטטוס</th></tr></thead>
-      <tbody>
-        <tr><td>cargo-api · GCP</td><td>בסיס מיגרציה ל-Cloud Run — Docker, CI/CD, DNS, ולידציה</td><td><span class="sprint-badge sp-done">הושלם</span></td></tr>
-        <tr><td>Release mechanics</td><td>מנגנוני build / promote / rollback לפרודקשן</td><td><span class="sprint-badge sp-done">הושלם</span></td></tr>
-        <tr><td>Shipment UX</td><td>תיקון באגים ביצירת משלוח (autocomplete + בחירת box-point)</td><td><span class="sprint-badge sp-done">הושלם</span></td></tr>
-        <tr><td>CARGO-5</td><td>סטורי מיגרציית cargo-api הכולל</td><td><span class="sprint-badge sp-prog">בתהליך</span></td></tr>
-        <tr><td>CARGO-8, CARGO-10</td><td>משימות סנכרון Baldar</td><td><span class="sprint-badge sp-todo">לביצוע</span></td></tr>
-        <tr><td>CARGO-9, CARGO-11, CARGO-23</td><td>דוח משלוחים / שיפורי סינון box</td><td><span class="sprint-badge sp-todo">לביצוע</span></td></tr>
-        <tr><td>CARGO-1</td><td>Epic מיגרציה — רחב מהספרינט</td><td><span class="sprint-badge sp-todo">פתוח</span></td></tr>
+      <tbody id="sprintBody">
+        <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">טוען ספרינט…</td></tr>
       </tbody>
     </table>
     </div>
@@ -293,6 +297,9 @@
     </div>
   </div>
 </div>
+
+<!-- ── Task hover preview (full title + description) ──────── -->
+<div id="taskPreview"><div class="tp-title"></div><div class="tp-desc"></div></div>
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -388,6 +395,53 @@ function showDash() {
   document.getElementById('hdr').style.display = 'flex';
   document.getElementById('main').style.display = 'block';
   loadData();
+  loadSprint();
+}
+
+// ══════════════════════════════════════════════════════
+//  LIVE SPRINT  (from Jira board via backend)
+// ══════════════════════════════════════════════════════
+function sprintBadge(category, statusName) {
+  var cls = 'sp-todo', label = statusName || 'לביצוע';
+  if (category === 'done')          { cls = 'sp-done'; label = statusName || 'הושלם'; }
+  else if (category === 'indeterminate') { cls = 'sp-prog'; label = statusName || 'בתהליך'; }
+  else                              { cls = 'sp-todo'; label = statusName || 'לביצוע'; }
+  return '<span class="sprint-badge ' + cls + '">' + esc(label) + '</span>';
+}
+
+function loadSprint() {
+  var body = document.getElementById('sprintBody');
+  fetch(SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'getSprint', idToken: ID_TOKEN })
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.success) {
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">לא ניתן לטעון ספרינט כרגע</td></tr>';
+        return;
+      }
+      if (d.sprintName) document.getElementById('sprintTitle').textContent = 'ספרינט נוכחי — ' + d.sprintName;
+      var issues = d.issues || [];
+      document.getElementById('sprintCount').textContent = issues.length + ' פריטים';
+      if (!issues.length) {
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">אין ספרינט פעיל כרגע</td></tr>';
+        return;
+      }
+      // order: in-progress → to-do → done
+      var rank = { indeterminate:0, new:1, done:2 };
+      issues.sort(function(a,b){ return (rank[a.category]==null?1:rank[a.category]) - (rank[b.category]==null?1:rank[b.category]); });
+      body.innerHTML = issues.map(function(it){
+        var link = 'https://cargo-ai-tech.atlassian.net/browse/' + encodeURIComponent(it.key);
+        return '<tr><td><a href="'+link+'" target="_blank" style="color:var(--blue);font-weight:600;text-decoration:none">'+esc(it.key)+'</a></td>' +
+               '<td>'+esc(it.summary)+'</td>' +
+               '<td>'+sprintBadge(it.category, it.statusName)+'</td></tr>';
+      }).join('');
+    })
+    .catch(function(){
+      body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">לא ניתן לטעון ספרינט כרגע</td></tr>';
+    });
 }
 
 // ══════════════════════════════════════════════════════
@@ -566,7 +620,7 @@ function renderTable() {
     html += '<tr>';
     html += '<td class="td-num">' + esc(t.num) + '</td>';
     html += '<td>' + typeBadge(t.type) + '</td>';
-    html += '<td class="td-title">' + esc(t.title) + (t.description?'<div class="td-desc">'+esc(t.description)+'</div>':'') + '</td>';
+    html += '<td class="td-title" data-title="' + esc(t.title) + '" data-desc="' + esc(t.description || '') + '">' + esc(t.title) + (t.description?'<div class="td-desc">'+esc(t.description)+'</div>':'') + '</td>';
     html += '<td>' + statusCell + '</td>';
     html += '<td>' + (t.handler ? esc(t.handler) : '<span style="color:var(--g400)">—</span>') + '</td>';
     html += '<td>' + priBadge(t.priority) + '</td>';
@@ -676,6 +730,46 @@ function esc(s) {
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('typeFilter').addEventListener('change', renderTable);
 document.getElementById('priFilter').addEventListener('change', renderTable);
+
+// ── task hover preview (shows full title + description) ──
+(function(){
+  var tip = document.getElementById('taskPreview');
+  var tTitle = tip.querySelector('.tp-title');
+  var tDesc  = tip.querySelector('.tp-desc');
+  var cur = null;
+
+  function place(e){
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = e.clientX - w - pad;                 // prefer left of cursor (RTL)
+    if (x < pad) x = e.clientX + pad;            // flip right if no room
+    var y = e.clientY + pad;
+    if (y + h > window.innerHeight - pad) y = window.innerHeight - h - pad;
+    if (y < pad) y = pad;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+  }
+
+  document.addEventListener('mouseover', function(e){
+    var cell = e.target.closest ? e.target.closest('.td-title') : null;
+    if (!cell) return;
+    var title = cell.getAttribute('data-title') || '';
+    var desc  = cell.getAttribute('data-desc') || '';
+    if (!title && !desc) return;
+    cur = cell;
+    tTitle.textContent = title;                  // textContent = safe (no HTML injection)
+    tDesc.textContent  = desc;
+    tDesc.style.display = desc ? 'block' : 'none';
+    tip.style.display = 'block';
+    place(e);
+  });
+  document.addEventListener('mousemove', function(e){
+    if (cur && tip.style.display === 'block') place(e);
+  });
+  document.addEventListener('mouseout', function(e){
+    var cell = e.target.closest ? e.target.closest('.td-title') : null;
+    if (cell && cell === cur) { tip.style.display = 'none'; cur = null; }
+  });
+})();
 </script>
 </body>
 </html>
