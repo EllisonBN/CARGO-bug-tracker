@@ -157,7 +157,8 @@
     #taskPreview .tl-item:last-child { padding-bottom:0; }
     #taskPreview .tl-item::before { content:''; position:absolute; right:-5px; top:3px; width:8px; height:8px; border-radius:50%; background:var(--blue); }
     #taskPreview .tl-meta { font-size:11.5px; color:var(--g500,#94a3b8); margin-bottom:2px; }
-    #taskPreview .tl-text { font-size:13px; color:var(--navy); line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+    #taskPreview .tl-action { font-size:13px; font-weight:600; color:var(--navy); line-height:1.5; }
+    #taskPreview .tl-note { font-size:12.5px; color:var(--g600); line-height:1.55; white-space:pre-wrap; word-break:break-word; margin-top:2px; }
 
     /* BADGES */
     .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
@@ -281,6 +282,12 @@
       <option value="P2">P2 — בינוני</option>
       <option value="P3">P3 — נמוך</option>
     </select>
+    <select class="filter-sel" id="statusFilter"><option value="">כל הסטטוסים</option></select>
+    <select class="filter-sel" id="handlerFilter"><option value="">כל המטפלים</option></select>
+    <select class="filter-sel" id="initiatorFilter"><option value="">כל היוזמים</option></select>
+    <input type="date" class="filter-sel" id="dateFrom" title="מתאריך" />
+    <input type="date" class="filter-sel" id="dateTo" title="עד תאריך" />
+    <button class="filter-sel" id="clearFilters" style="cursor:pointer;font-weight:600;color:var(--blue)">נקה סינון</button>
   </div>
 
   <div class="table-card">
@@ -501,10 +508,47 @@ document.getElementById('refreshBtn').addEventListener('click', loadData);
 //  RENDER
 // ══════════════════════════════════════════════════════
 function render() {
+  populateFilters();
   renderStats();
   renderDonut();
   renderPriBars();
   renderTable();
+}
+
+// ── fill status/handler/initiator filter options from data ──
+function fillSelect(id, values, keepFirst){
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  var cur = sel.value;
+  var opts = sel.querySelectorAll('option');
+  // keep the first ("all") option, drop the rest
+  for (var i = opts.length - 1; i >= (keepFirst ? 1 : 0); i--) opts[i].remove();
+  values.forEach(function(v){
+    var o = document.createElement('option');
+    o.value = v.value; o.textContent = v.label;
+    sel.appendChild(o);
+  });
+  // restore prior selection if still valid
+  sel.value = cur;
+}
+function populateFilters(){
+  // statuses actually present, in canonical order
+  var order = ['פתוח','בטיפול','ממתין ללקוח','טופל','נסגר','לא טופל','בבדיקות'];
+  var present = {}; allTasks.forEach(function(t){ if (t.status) present[t.status] = true; });
+  var statuses = order.filter(function(s){ return present[s]; })
+                      .concat(Object.keys(present).filter(function(s){ return order.indexOf(s) === -1; }));
+  fillSelect('statusFilter', statuses.map(function(s){ return {value:s,label:s}; }), true);
+
+  // handlers: fixed list + "no handler"
+  var hs = HANDLER_OPTS.map(function(h){ return {value:h,label:h}; });
+  hs.push({value:'__none__', label:'ללא מטפל'});
+  fillSelect('handlerFilter', hs, true);
+
+  // initiators: unique from data
+  var seen = {}, inits = [];
+  allTasks.forEach(function(t){ var n=String(t.initiator||'').trim(); if (n && !seen[n]) { seen[n]=1; inits.push(n); } });
+  inits.sort();
+  fillSelect('initiatorFilter', inits.map(function(n){ return {value:n,label:n}; }), true);
 }
 
 // ── DONUT by status ────────────────────────────────────
@@ -600,20 +644,40 @@ function renderStats() {
 
 function setStatusFilter(s) {
   activeStatusFilter = (activeStatusFilter === s) ? '' : s;
+  var sf = document.getElementById('statusFilter');
+  if (sf) sf.value = activeStatusFilter;
   render();
 }
+
+function parseDMY(s){ var m=String(s||'').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); return m ? new Date(+m[3], +m[2]-1, +m[1]) : null; }
+function parseISO(s){ var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
 
 function renderTable() {
   var search = (document.getElementById('searchInput').value || '').toLowerCase();
   var typeF  = document.getElementById('typeFilter').value;
   var priF   = document.getElementById('priFilter').value;
+  var handlerF = document.getElementById('handlerFilter').value;
+  var initF  = document.getElementById('initiatorFilter').value;
+  var fromD  = parseISO(document.getElementById('dateFrom').value);
+  var toD    = parseISO(document.getElementById('dateTo').value);
 
   var rows = allTasks.filter(function(t){
     if (activeStatusFilter && t.status !== activeStatusFilter) return false;
     if (typeF && t.type !== typeF) return false;
     if (priF && t.priority !== priF) return false;
+    if (handlerF) {
+      if (handlerF === '__none__') { if (String(t.handler||'').trim()) return false; }
+      else if (t.handler !== handlerF) return false;
+    }
+    if (initF && t.initiator !== initF) return false;
+    if (fromD || toD) {
+      var d = parseDMY(t.date);
+      if (!d) return false;
+      if (fromD && d < fromD) return false;
+      if (toD && d > toD) return false;
+    }
     if (search) {
-      var hay = [t.title,t.initiator,t.system,t.customer,t.description,String(t.num)].join(' ').toLowerCase();
+      var hay = [t.title,t.initiator,t.system,t.customer,t.description,t.handler,String(t.num)].join(' ').toLowerCase();
       if (hay.indexOf(search) === -1) return false;
     }
     return true;
@@ -641,7 +705,9 @@ function renderTable() {
     if (t.doneDate)   dates += '<div class="td-sub">טופל: ' + esc(t.doneDate) + '</div>';
     if (t.closedDate) dates += '<div class="td-sub">נסגר: ' + esc(t.closedDate) + '</div>';
 
-    var handlerTxt = t.handler ? esc(t.handler) : '<span style="color:var(--g400)">—</span>';
+    var handlerTxt = t.handler
+      ? esc(t.handler)
+      : (IS_ADMIN ? '<span style="color:var(--blue)">שייך…</span>' : '<span style="color:var(--g400)">—</span>');
     var handlerCell = IS_ADMIN
       ? '<span class="handler-edit" onclick="openHandlerPopup(\'' + esc(String(t.num)) + '\')">' + handlerTxt + ' <span class="edit-pen">✎</span></span>'
       : handlerTxt;
@@ -795,6 +861,18 @@ function esc(s) {
 document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('typeFilter').addEventListener('change', renderTable);
 document.getElementById('priFilter').addEventListener('change', renderTable);
+document.getElementById('statusFilter').addEventListener('change', function(){ activeStatusFilter = this.value; render(); });
+document.getElementById('handlerFilter').addEventListener('change', renderTable);
+document.getElementById('initiatorFilter').addEventListener('change', renderTable);
+document.getElementById('dateFrom').addEventListener('change', renderTable);
+document.getElementById('dateTo').addEventListener('change', renderTable);
+document.getElementById('clearFilters').addEventListener('click', function(){
+  ['searchInput','typeFilter','priFilter','statusFilter','handlerFilter','initiatorFilter','dateFrom','dateTo'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  activeStatusFilter = '';
+  render();
+});
 
 // ── hover card: task preview (title cells) + status timeline (status cells) ──
 (function(){
@@ -829,8 +907,15 @@ document.getElementById('priFilter').addEventListener('change', renderTable);
     var items = lines.map(function(l){
       var idx  = l.indexOf(' · ');
       var meta = idx > -1 ? l.substring(0, idx) : '';
-      var text = idx > -1 ? l.substring(idx + 3) : l;
-      return '<div class="tl-item"><div class="tl-meta">' + esc(meta) + '</div><div class="tl-text">' + esc(text) + '</div></div>';
+      var rest = idx > -1 ? l.substring(idx + 3) : l;   // "who → status: note"
+      var ci   = rest.indexOf(': ');
+      var action = ci > -1 ? rest.substring(0, ci) : rest;   // "who → status"
+      var note   = ci > -1 ? rest.substring(ci + 2) : '';    // the note added at that change
+      return '<div class="tl-item">' +
+               '<div class="tl-meta">' + esc(meta) + '</div>' +
+               '<div class="tl-action">' + esc(action) + '</div>' +
+               (note ? '<div class="tl-note">' + esc(note) + '</div>' : '') +
+             '</div>';
     }).join('');
     tip.innerHTML = '<div class="tl-head">היסטוריית סטטוס</div>' + items;
     return true;
