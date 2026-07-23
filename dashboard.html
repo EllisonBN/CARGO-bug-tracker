@@ -44,6 +44,9 @@
     /* status-edit affordance */
     .status-edit { cursor:pointer; display:inline-flex; align-items:center; gap:5px; border-radius:6px; padding:2px 4px; transition:background .15s; }
     .status-edit:hover { background:var(--g100); }
+    .handler-edit { cursor:pointer; display:inline-flex; align-items:center; gap:5px; border-radius:6px; padding:2px 4px; transition:background .15s; }
+    .handler-edit:hover { background:var(--g100); }
+    .has-timeline { cursor:help; }
     .edit-pen { color:var(--g400); font-size:12px; }
     .td-sub { font-size:11px; color:var(--g400); margin-top:2px; }
     /* status popup */
@@ -149,6 +152,12 @@
     }
     #taskPreview .tp-title { font-weight:700; color:var(--navy); font-size:14px; margin-bottom:8px; line-height:1.5; }
     #taskPreview .tp-desc { color:var(--g600); font-size:13px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+    #taskPreview .tl-head { font-weight:700; color:var(--navy); font-size:13px; margin-bottom:10px; }
+    #taskPreview .tl-item { position:relative; padding:0 16px 12px 0; border-right:2px solid #e2e8f0; }
+    #taskPreview .tl-item:last-child { padding-bottom:0; }
+    #taskPreview .tl-item::before { content:''; position:absolute; right:-5px; top:3px; width:8px; height:8px; border-radius:50%; background:var(--blue); }
+    #taskPreview .tl-meta { font-size:11.5px; color:var(--g500,#94a3b8); margin-bottom:2px; }
+    #taskPreview .tl-text { font-size:13px; color:var(--navy); line-height:1.55; white-space:pre-wrap; word-break:break-word; }
 
     /* BADGES */
     .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
@@ -298,7 +307,21 @@
   </div>
 </div>
 
-<!-- ── Task hover preview (full title + description) ──────── -->
+<!-- ── Handler assignment popup (admins only) ───────────── -->
+<div class="pop-overlay" id="hpopOverlay">
+  <div class="pop-card">
+    <div class="pop-title" id="hpopTitle">שיוך מטפל</div>
+    <label class="pop-label" for="hpopSelect">מטפל</label>
+    <select class="pop-select" id="hpopSelect"></select>
+    <div class="pop-err" id="hpopErr"></div>
+    <div class="pop-actions">
+      <button class="pop-btn pop-save" id="hpopSave" onclick="submitHandlerChange()">שמירה</button>
+      <button class="pop-btn pop-cancel" onclick="closeHandlerPopup()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Hover card: task preview OR status timeline ───────── -->
 <div id="taskPreview"><div class="tp-title"></div><div class="tp-desc"></div></div>
 
 <script>
@@ -320,13 +343,14 @@ var IS_ADMIN = false;
 var STATUS_COLORS = {
   'פתוח':    '#3b82f6',  // כחול
   'בטיפול':  '#f59e0b',  // כתום
+  'ממתין ללקוח': '#ec4899',  // ורוד – ממתינים לתגובת הלקוח
   'טופל':    '#06b6d4',  // טורקיז – פיתוח סיים, ממתין לאישור העסק
   'נסגר':    '#22c55e',  // ירוק
   'לא טופל': '#ef4444',  // אדום
   'בבדיקות': '#a855f7',  // סגול
   // legacy
   'פתוח ביצירה': '#3b82f6',
-  'ממתין':       '#a855f7',
+  'ממתין':       '#ec4899',
   'בוטל':        '#94a3b8'
 };
 function statusColor(s){ return STATUS_COLORS[s] || '#64748b'; }
@@ -608,21 +632,26 @@ function renderTable() {
 
   rows.forEach(function(t){
     var editable = canEdit(t);
-    var noteTip = t.statusNote ? ' title="' + esc(String(t.statusNote).split('\n')[0]) + '"' : '';
-    var statusCell = editable
-      ? '<span class="status-edit" onclick="openStatusPopup(\'' + esc(String(t.num)) + '\')"' + noteTip + '>' + statusBadge(t.status) + ' <span class="edit-pen">✎</span></span>'
-      : '<span' + noteTip + '>' + statusBadge(t.status) + '</span>';
+    var statusInner = editable
+      ? '<span class="status-edit" onclick="openStatusPopup(\'' + esc(String(t.num)) + '\')">' + statusBadge(t.status) + ' <span class="edit-pen">✎</span></span>'
+      : statusBadge(t.status);
+    var tlAttr = t.statusNote ? ' class="has-timeline" data-timeline="' + esc(t.statusNote) + '"' : '';
 
     var dates = esc(t.date);
     if (t.doneDate)   dates += '<div class="td-sub">טופל: ' + esc(t.doneDate) + '</div>';
     if (t.closedDate) dates += '<div class="td-sub">נסגר: ' + esc(t.closedDate) + '</div>';
 
+    var handlerTxt = t.handler ? esc(t.handler) : '<span style="color:var(--g400)">—</span>';
+    var handlerCell = IS_ADMIN
+      ? '<span class="handler-edit" onclick="openHandlerPopup(\'' + esc(String(t.num)) + '\')">' + handlerTxt + ' <span class="edit-pen">✎</span></span>'
+      : handlerTxt;
+
     html += '<tr>';
     html += '<td class="td-num">' + esc(t.num) + '</td>';
     html += '<td>' + typeBadge(t.type) + '</td>';
     html += '<td class="td-title" data-title="' + esc(t.title) + '" data-desc="' + esc(t.description || '') + '">' + esc(t.title) + (t.description?'<div class="td-desc">'+esc(t.description)+'</div>':'') + '</td>';
-    html += '<td>' + statusCell + '</td>';
-    html += '<td>' + (t.handler ? esc(t.handler) : '<span style="color:var(--g400)">—</span>') + '</td>';
+    html += '<td' + tlAttr + '>' + statusInner + '</td>';
+    html += '<td>' + handlerCell + '</td>';
     html += '<td>' + priBadge(t.priority) + '</td>';
     html += '<td>' + esc(t.initiator) + '</td>';
     html += '<td class="col-hide">' + esc(t.system) + '</td>';
@@ -652,7 +681,7 @@ function openStatusPopup(num) {
   POPUP_TASK = t;
 
   // which statuses may this user choose?
-  var opts = IS_ADMIN ? ['פתוח','בטיפול','טופל','נסגר','לא טופל','בבדיקות'] : ['נסגר','לא טופל'];
+  var opts = IS_ADMIN ? ['פתוח','בטיפול','ממתין ללקוח','טופל','נסגר','לא טופל','בבדיקות'] : ['נסגר','לא טופל'];
   var optsHtml = opts.map(function(s){
     var sel = (s === t.status) ? ' selected' : '';
     return '<option value="'+esc(s)+'"'+sel+'>'+esc(s)+'</option>';
@@ -687,6 +716,42 @@ function submitStatusChange() {
     .then(function(d){
       btn.disabled = false; btn.textContent = 'שמירה';
       if (d.success) { closeStatusPopup(); loadData(); }
+      else { errEl.textContent = d.error || 'השינוי נדחה.'; }
+    })
+    .catch(function(err){ btn.disabled = false; btn.textContent = 'שמירה'; errEl.textContent = 'שגיאת רשת: ' + err.message; });
+}
+
+// ── handler-assignment popup (admins only) ─────────────
+var HPOP_TASK = null;
+var HANDLER_OPTS = ['Eliav','Amit','Danylo'];
+function openHandlerPopup(num){
+  if (!IS_ADMIN) return;
+  var t=null; for (var i=0;i<allTasks.length;i++){ if(String(allTasks[i].num)===String(num)){ t=allTasks[i]; break; } }
+  if (!t) return;
+  HPOP_TASK = t;
+  var opts = ['<option value="">(ללא מטפל)</option>'].concat(HANDLER_OPTS.map(function(h){
+    return '<option value="'+esc(h)+'"'+(h===t.handler?' selected':'')+'>'+esc(h)+'</option>';
+  })).join('');
+  document.getElementById('hpopTitle').textContent = 'שיוך מטפל — משימה #' + t.num;
+  document.getElementById('hpopSelect').innerHTML = opts;
+  document.getElementById('hpopErr').textContent = '';
+  document.getElementById('hpopOverlay').style.display = 'flex';
+}
+function closeHandlerPopup(){ document.getElementById('hpopOverlay').style.display='none'; HPOP_TASK=null; }
+function submitHandlerChange(){
+  if (!HPOP_TASK) return;
+  var handler = document.getElementById('hpopSelect').value;
+  var errEl = document.getElementById('hpopErr');
+  var btn = document.getElementById('hpopSave');
+  btn.disabled = true; btn.textContent = 'שומר...';
+  fetch(SCRIPT_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'updateHandler', idToken: ID_TOKEN, taskNum: HPOP_TASK.num, handler: handler })
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false; btn.textContent = 'שמירה';
+      if (d.success) { closeHandlerPopup(); loadData(); }
       else { errEl.textContent = d.error || 'השינוי נדחה.'; }
     })
     .catch(function(err){ btn.disabled = false; btn.textContent = 'שמירה'; errEl.textContent = 'שגיאת רשת: ' + err.message; });
@@ -731,11 +796,9 @@ document.getElementById('searchInput').addEventListener('input', renderTable);
 document.getElementById('typeFilter').addEventListener('change', renderTable);
 document.getElementById('priFilter').addEventListener('change', renderTable);
 
-// ── task hover preview (shows full title + description) ──
+// ── hover card: task preview (title cells) + status timeline (status cells) ──
 (function(){
   var tip = document.getElementById('taskPreview');
-  var tTitle = tip.querySelector('.tp-title');
-  var tDesc  = tip.querySelector('.tp-desc');
   var cur = null;
 
   function place(e){
@@ -749,16 +812,39 @@ document.getElementById('priFilter').addEventListener('change', renderTable);
     tip.style.top  = y + 'px';
   }
 
-  document.addEventListener('mouseover', function(e){
-    var cell = e.target.closest ? e.target.closest('.td-title') : null;
-    if (!cell) return;
+  function showPreview(cell){
     var title = cell.getAttribute('data-title') || '';
     var desc  = cell.getAttribute('data-desc') || '';
-    if (!title && !desc) return;
-    cur = cell;
-    tTitle.textContent = title;                  // textContent = safe (no HTML injection)
-    tDesc.textContent  = desc;
-    tDesc.style.display = desc ? 'block' : 'none';
+    if (!title && !desc) return false;
+    tip.innerHTML = '<div class="tp-title"></div>' + (desc ? '<div class="tp-desc"></div>' : '');
+    tip.querySelector('.tp-title').textContent = title;                 // textContent = safe
+    if (desc) tip.querySelector('.tp-desc').textContent = desc;
+    return true;
+  }
+
+  function showTimeline(cell){
+    var raw = cell.getAttribute('data-timeline') || '';
+    var lines = raw.split('\n').filter(function(l){ return l.trim(); });
+    if (!lines.length) return false;
+    var items = lines.map(function(l){
+      var idx  = l.indexOf(' · ');
+      var meta = idx > -1 ? l.substring(0, idx) : '';
+      var text = idx > -1 ? l.substring(idx + 3) : l;
+      return '<div class="tl-item"><div class="tl-meta">' + esc(meta) + '</div><div class="tl-text">' + esc(text) + '</div></div>';
+    }).join('');
+    tip.innerHTML = '<div class="tl-head">היסטוריית סטטוס</div>' + items;
+    return true;
+  }
+
+  document.addEventListener('mouseover', function(e){
+    if (!e.target.closest) return;
+    var titleCell = e.target.closest('.td-title');
+    var tlCell    = e.target.closest('.has-timeline');
+    var shown = false, host = null;
+    if (titleCell)   { shown = showPreview(titleCell);  host = titleCell; }
+    else if (tlCell) { shown = showTimeline(tlCell);    host = tlCell; }
+    if (!shown) return;
+    cur = host;
     tip.style.display = 'block';
     place(e);
   });
@@ -766,8 +852,9 @@ document.getElementById('priFilter').addEventListener('change', renderTable);
     if (cur && tip.style.display === 'block') place(e);
   });
   document.addEventListener('mouseout', function(e){
-    var cell = e.target.closest ? e.target.closest('.td-title') : null;
-    if (cell && cell === cur) { tip.style.display = 'none'; cur = null; }
+    if (!e.target.closest) return;
+    var host = e.target.closest('.td-title') || e.target.closest('.has-timeline');
+    if (host && host === cur) { tip.style.display = 'none'; cur = null; }
   });
 })();
 </script>
