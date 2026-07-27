@@ -335,7 +335,7 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzf0WqMdn1yJHKqc6bu70_Lyuv08T6c6Q2Xa6IQlt76cTAfRZNJ-V08bpIuhkrfIswUXQ/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyk_auApszkrWYjZG71dOft6IEBD9APJ7tplzu-4HCNjag1lBdJpQBDrT6JqLhTxmxVJQ/exec';
 var CLIENT_ID  = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
 
 var ALLOWLIST = ['eliavo@cargo.co.il','amitd@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','ellison@cargo.co.il','liata@cargo.co.il','nofary@cargo.co.il','talib@cargo.co.il','shlomi.t@cargo.co.il','nicole.mr@cargo.co.il','tomer@benmoshe.com','sagivd@cargo.co.il','adij@cargo.co.il'];
@@ -905,12 +905,15 @@ document.getElementById('clearFilters').addEventListener('click', function(){
     var lines = raw.split('\n').filter(function(l){ return l.trim(); });
     if (!lines.length) return false;
     var items = lines.map(function(l){
-      var idx  = l.indexOf(' · ');
-      var meta = idx > -1 ? l.substring(0, idx) : '';
-      var rest = idx > -1 ? l.substring(idx + 3) : l;   // "who → status: note"
-      var ci   = rest.indexOf(': ');
-      var action = ci > -1 ? rest.substring(0, ci) : rest;   // "who → status"
-      var note   = ci > -1 ? rest.substring(ci + 2) : '';    // the note added at that change
+      var m = l.match(/^(\d{1,2}\.\d{1,2}\.\d{4}(?:\s+\d{1,2}:\d{2})?)\s+·\s+([\s\S]*)$/);
+      if (!m) {
+        // line isn't a standard "timestamp · who → status: note" entry — show it plainly
+        return '<div class="tl-item"><div class="tl-note">' + esc(l) + '</div></div>';
+      }
+      var meta = m[1], rest = m[2];   // rest = "who → status: note"
+      var ci = rest.indexOf(': ');
+      var action = ci > -1 ? rest.substring(0, ci) : rest;
+      var note   = ci > -1 ? rest.substring(ci + 2) : '';
       return '<div class="tl-item">' +
                '<div class="tl-meta">' + esc(meta) + '</div>' +
                '<div class="tl-action">' + esc(action) + '</div>' +
