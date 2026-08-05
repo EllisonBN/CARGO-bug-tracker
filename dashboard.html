@@ -425,8 +425,8 @@ function showDash() {
   document.getElementById('gate').style.display = 'none';
   document.getElementById('hdr').style.display = 'flex';
   document.getElementById('main').style.display = 'block';
-  loadData();
-  loadSprint();
+  loadData();                          // table first — most important
+  setTimeout(loadSprint, 400);         // sprint shortly after (usually cached → instant)
 }
 
 // ══════════════════════════════════════════════════════
