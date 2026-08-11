@@ -842,7 +842,13 @@ function filesCell(f) {
   if (!f) return '<span style="color:var(--g400)">—</span>';
   var links = String(f).split('\n').filter(function(x){return x.indexOf('http')===0;});
   if (links.length === 0) return '<span style="color:var(--g400)">—</span>';
-  return '<a class="files-link" href="'+links[0]+'" target="_blank">'+links.length+' קבצים ↗</a>';
+  var first = links[0];
+  if (first.indexOf('/folders/') > -1) {
+    return '<a class="files-link" href="'+esc(first)+'" target="_blank">📁 תיקייה ↗</a>';
+  }
+  // legacy tickets: individual file link(s)
+  var label = links.length > 1 ? (links.length + ' קבצים ↗') : 'קובץ ↗';
+  return '<a class="files-link" href="'+esc(first)+'" target="_blank">'+label+'</a>';
 }
 function jiraCell(j) {
   if (!j) return '<span style="color:var(--g400)">—</span>';
