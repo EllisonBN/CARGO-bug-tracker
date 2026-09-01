@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cargo — Roadmap Timeline & Ownership</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7; --text-primary:#0b0b0b; --text-secondary:#52514e;
+    --text-muted:#898781; --gridline:#e1e0d9; --border:rgba(11,11,11,0.10); --band:rgba(137,135,129,0.16);
+    --c-eliav:#2a78d6; --c-danylo:#eb6834; --c-marom:#1baf7a; --c-tomer:#eda100; --c-critical:#d03b3b;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--page); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .viz-root { background:var(--page); padding:28px 24px 40px; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:19px; color:var(--text-primary); margin:0 0 4px; font-weight:700; }
+  .sub { font-size:13px; color:var(--text-secondary); margin:0 0 20px; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:18px; align-items:center; margin-bottom:18px; padding:12px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; }
+  .legend-group { display:flex; align-items:center; gap:10px; }
+  .legend-title { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-right:2px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex:none; }
+  .chip { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-secondary); }
+  .stage-swatch { width:22px; height:12px; border-radius:3px; display:inline-block; background:var(--text-muted); flex:none; }
+  .stage-discovery { background:transparent; border:2px dashed var(--text-muted); }
+  .stage-design { background:var(--text-muted); opacity:.35; }
+  .stage-devtest { background:var(--text-muted); opacity:.65; }
+  .stage-impl { background:var(--text-muted); opacity:1; }
+  .holiday-swatch { width:22px; height:12px; border-radius:3px; border:2px solid var(--c-critical); background:transparent; }
+  .freeze-swatch { width:22px; height:12px; border-radius:3px; background:var(--band); border:1px solid var(--gridline); }
+
+  /* active-now panel */
+  .active-now { margin-bottom:18px; padding:14px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; }
+  .active-now h2 { font-size:13.5px; margin:0 0 10px; color:var(--text-primary); font-weight:700; }
+  .active-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; }
+  .active-card { border:1px solid var(--border); border-radius:8px; padding:9px 11px; background:var(--page); }
+  .active-card .an-name { font-size:12.5px; font-weight:600; color:var(--text-primary); }
+  .active-card .an-meta { font-size:11px; color:var(--text-secondary); margin-top:3px; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .an-stage { font-size:10px; padding:1px 6px; border-radius:20px; background:var(--band); color:var(--text-secondary); }
+
+  .gantt-scroll { overflow-x:auto; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:14px 14px 18px; }
+  .gantt { position:relative; width:1085px; display:grid; grid-template-columns:235px repeat(10,85px); grid-auto-rows:32px; row-gap:3px; column-gap:0; }
+  .overlay { position:absolute; top:32px; bottom:0; z-index:0; pointer-events:none; }
+  .freeze-band { background:var(--band); border-left:1px dashed var(--gridline); border-right:1px dashed var(--gridline); }
+  .freeze-label { position:absolute; top:2px; font-size:10px; color:var(--text-muted); white-space:nowrap; padding:1px 4px; }
+  .today-line { width:2px; background:var(--c-critical); opacity:.55; top:0; }
+  .today-label { position:absolute; top:-16px; font-size:10px; color:var(--c-critical); font-weight:600; white-space:nowrap; transform:translateX(-50%); }
+  .col-head { display:flex; align-items:center; justify-content:center; font-size:11.5px; color:var(--text-secondary); font-weight:600; border-bottom:1px solid var(--gridline); z-index:1; }
+  .row-label { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-primary); padding-right:8px; z-index:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row-label .owners { display:flex; gap:3px; flex:none; }
+  .row-label .owners .dot { width:8px; height:8px; }
+  .track-title { grid-column:1/-1; display:flex; align-items:center; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-secondary); background:rgba(137,135,129,0.10); padding-left:4px; border-radius:4px; z-index:1; }
+  .bar { align-self:center; height:20px; border-radius:4px; margin:0 3px; display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; z-index:1; position:relative; }
+  .bar.holiday { outline:2px solid var(--c-critical); outline-offset:1px; }
+  .bar.level-discovery { background:transparent !important; border:2px dashed; color:var(--text-secondary); }
+  .bar.level-design { opacity:.45; color:rgba(255,255,255,0.95); }
+  .bar.level-devtest { opacity:.72; }
+  .bar.level-impl { opacity:1; }
+
+  .note-box { margin-top:16px; padding:12px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; font-size:12.5px; color:var(--text-secondary); }
+  .note-box b { color:var(--text-primary); }
+  .unsched-list { margin:6px 0 0; padding-left:18px; }
+  .workload { margin-top:18px; padding:14px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; }
+  .workload h2 { font-size:13.5px; margin:0 0 12px; color:var(--text-primary); font-weight:700; }
+  .wbar-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .wbar-name { width:76px; font-size:12.5px; color:var(--text-primary); flex:none; }
+  .wbar-track { flex:1; background:var(--gridline); border-radius:4px; height:16px; overflow:hidden; }
+  .wbar-fill { height:100%; border-radius:4px; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; }
+  .wbar-fill span { font-size:10.5px; color:#fff; font-weight:700; }
+  .footer-note { margin-top:14px; font-size:11.5px; color:var(--text-muted); }
+
+  /* login gate */
+  .gate { position:fixed; inset:0; background:#0f2744; display:flex; align-items:center; justify-content:center; z-index:1000; }
+  .gate-card { background:#fff; border-radius:16px; padding:34px 30px; width:340px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .gate-logo { font-size:20px; font-weight:800; color:#0f2744; letter-spacing:1px; }
+  .gate-title { font-size:15px; color:#0f172a; margin:14px 0 4px; font-weight:600; }
+  .gate-sub { font-size:12.5px; color:#64748b; margin-bottom:18px; }
+  .gate-err { color:#dc2626; font-size:12.5px; margin-top:12px; min-height:16px; }
+  #gBtn { display:flex; justify-content:center; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">CARGO</div>
+    <div class="gate-title">מפת דרכים — Roadmap</div>
+    <div class="gate-sub">גישה מוגבלת · התחברו עם חשבון Google</div>
+    <div id="gBtn"></div>
+    <div class="gate-err" id="gErr"></div>
+  </div>
+</div>
+
+<div class="viz-root" id="main" style="display:none">
+  <div class="wrap">
+    <h1>Cargo — Weekly Delivery Roadmap</h1>
+    <p class="sub" id="subLine"></p>
+
+    <div class="legend">
+      <div class="legend-group">
+        <span class="legend-title">Owner</span>
+        <span class="chip"><span class="dot" style="background:var(--c-eliav)"></span>Eliav</span>
+        <span class="chip"><span class="dot" style="background:var(--c-danylo)"></span>Danylo</span>
+        <span class="chip"><span class="dot" style="background:var(--c-marom)"></span>Marom</span>
+        <span class="chip"><span class="dot" style="background:var(--c-tomer)"></span>Tomer</span>
+      </div>
+      <div class="legend-group">
+        <span class="legend-title">Stage</span>
+        <span class="chip"><span class="stage-swatch stage-discovery"></span>Discovery</span>
+        <span class="chip"><span class="stage-swatch stage-design"></span>Design</span>
+        <span class="chip"><span class="stage-swatch stage-devtest"></span>Dev/Test</span>
+        <span class="chip"><span class="stage-swatch stage-impl"></span>Implementation</span>
+      </div>
+      <div class="legend-group">
+        <span class="legend-title">Flags</span>
+        <span class="chip"><span class="holiday-swatch"></span>Moved for holiday</span>
+        <span class="chip"><span class="freeze-swatch"></span>Ops freeze (Sep–Dec)</span>
+      </div>
+    </div>
+
+    <!-- ACTIVE NOW -->
+    <div class="active-now">
+      <h2 id="activeTitle">🟢 בעבודה כרגע</h2>
+      <div class="active-grid" id="activeGrid"></div>
+    </div>
+
+    <div class="gantt-scroll"><div class="gantt" id="gantt"></div></div>
+
+    <div class="note-box">
+      <b>Not on the timeline yet:</b> no owner or scheduled date set.
+      <ul class="unsched-list" id="unschedList"></ul>
+    </div>
+
+    <div class="workload">
+      <h2 id="workloadTitle">Who's carrying the load</h2>
+      <div id="workloadBars"></div>
+    </div>
+
+    <p class="footer-note">Read from a month-bucketed source — bars align to the month(s) each stage falls in, not exact weeks. Red outline = shifted to avoid the Sep 11–Oct 3 holiday cluster. Split-color bars = two owners. · לעדכון: פנו לאליסון/אליב.</p>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  ACCESS  (gated to these 5; edits happen via request)
+// ══════════════════════════════════════════════════════
+var CLIENT_ID = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
+var ALLOWLIST = ['ellison@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','eliavo@cargo.co.il','maroma@cargo.co.il'];
+var AUTH_KEY  = 'cargo_gauth';
+
+function decodeJwt(t){ try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e){ return {}; } }
+function tokenValid(p){ if(!p||!p.email) return false; if(ALLOWLIST.indexOf(String(p.email).toLowerCase())===-1) return false; if(p.exp && p.exp*1000<Date.now()) return false; return true; }
+function acceptLogin(token){
+  var p = decodeJwt(token), email = String(p.email||'').toLowerCase();
+  if(!tokenValid(p)){ try{localStorage.removeItem(AUTH_KEY);}catch(e){} document.getElementById('gErr').textContent = 'לחשבון '+(email||'')+' אין גישה למפת הדרכים.'; return false; }
+  try{ localStorage.setItem(AUTH_KEY, token); }catch(e){}
+  document.getElementById('gate').style.display='none';
+  document.getElementById('main').style.display='block';
+  renderAll();
+  return true;
+}
+function onGoogleCredential(resp){ var t=resp&&resp.credential; if(!t){document.getElementById('gErr').textContent='ההתחברות נכשלה';return;} acceptLogin(t); }
+function tryStoredAuth(){ var t=null; try{t=localStorage.getItem(AUTH_KEY);}catch(e){} if(!t) return false; if(!tokenValid(decodeJwt(t))){try{localStorage.removeItem(AUTH_KEY);}catch(e){} return false;} return acceptLogin(t); }
+function initGoogle(){ if(!(window.google&&google.accounts&&google.accounts.id)){ setTimeout(initGoogle,150); return; }
+  google.accounts.id.initialize({ client_id:CLIENT_ID, callback:onGoogleCredential });
+  google.accounts.id.renderButton(document.getElementById('gBtn'), { theme:'filled_blue', size:'large', text:'signin_with', shape:'pill', locale:'he' });
+}
+tryStoredAuth(); initGoogle();
+
+// ══════════════════════════════════════════════════════
+//  ROADMAP DATA  (edit here on request → re-upload)
+//  months index: 0=Jun'26 … 9=Mar'27.  bar {s,e} = inclusive month indices.
+//  stage: discovery | design | devtest | impl.  flag: 'holiday' optional.
+// ══════════════════════════════════════════════════════
+var MONTHS = ["Jun '26","Jul '26","Aug '26","Sep '26","Oct '26","Nov '26","Dec '26","Jan '27","Feb '27","Mar '27"];
+var OWNER_VAR = { 'Eliav':'var(--c-eliav)','Danylo':'var(--c-danylo)','Marom':'var(--c-marom)','Tomer':'var(--c-tomer)' };
+var FREEZE = { s:3, e:6 };   // Sep–Dec ops freeze
+
+var TRACKS = [
+  { title:'Design queue — product (serialized one at a time)', items:[
+    { name:'Dashboard – urgent fix', owners:['Danylo','Eliav'], bars:[{s:0,e:1,stage:'impl',label:'Impl'}] },
+    { name:'Marom onboarding', owners:['Marom','Eliav'], bars:[{s:1,e:1,stage:'impl',label:'Impl'}] },
+    { name:'IHERB – ICL', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'impl',label:'Impl'}] },
+    { name:'USHOP-ICL', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'impl',label:'Impl'}] },
+    { name:'Columbia', owners:['Marom','Eliav'], bars:[{s:2,e:2,stage:'design',label:'Design'},{s:3,e:3,stage:'impl',label:'Impl',flag:'holiday'}] },
+    { name:'IHERB self-service dashboard', owners:['Danylo','Eliav'], bars:[{s:3,e:3,stage:'impl',label:'Impl'}] },
+    { name:'Shopify App', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'},{s:4,e:4,stage:'impl',label:'Impl'}] }
+  ]},
+  { title:'Infrastructure migration — Cloudways → GCP, GitHub → Cargo Enterprise', items:[
+    { name:'New-API migration to GCP', owners:['Eliav','Danylo'], bars:[{s:1,e:1,stage:'devtest',label:'Dev/Test'},{s:2,e:2,stage:'impl',label:'Impl'}] },
+    { name:'Reduce Cloudways servers', owners:['Eliav'], bars:[{s:1,e:1,stage:'impl',label:'Impl'}] },
+    { name:'Migrate Cloudflare', owners:['Danylo','Eliav'], bars:[{s:2,e:2,stage:'impl',label:'Migrate',flag:'holiday'}] },
+    { name:'Migrate Shopify app to GCP', owners:['Eliav'], bars:[{s:3,e:3,stage:'impl',label:'Migrate'}] },
+    { name:'Migrate Konimbo to GCP', owners:['Eliav'], bars:[{s:4,e:4,stage:'impl',label:'Migrate'}] },
+    { name:'Migrate Old API to GCP', owners:['Eliav'], bars:[{s:4,e:4,stage:'devtest',label:'Dev/Test'},{s:5,e:5,stage:'impl',label:'Impl'}] },
+    { name:'Migrate landing page to GCP', owners:['Eliav'], bars:[{s:5,e:5,stage:'impl',label:'Migrate'}] },
+    { name:'GitHub → Cargo Enterprise', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'devtest',label:'Dev/Test'},{s:3,e:3,stage:'impl',label:'Impl'}] },
+    { name:'Stream to BigQuery', owners:['Tomer'], bars:[{s:3,e:3,stage:'design',label:'Design'}] },
+    { name:'Change label creation', owners:[], bars:[{s:6,e:6,stage:'impl',label:'Impl'}] }
+  ]},
+  { title:'Platform / software infrastructure', items:[
+    { name:'Shipment-request logger', owners:['Eliav'], bars:[{s:2,e:2,stage:'discovery',label:'Discovery'},{s:3,e:3,stage:'impl',label:'Impl'}] },
+    { name:'Logging-request monitor', owners:['Eliav'], bars:[{s:2,e:2,stage:'discovery',label:'Discovery'},{s:3,e:4,stage:'impl',label:'Impl'}] },
+    { name:'Address validation (polygons)', owners:['Marom','Eliav'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'},{s:4,e:4,stage:'impl',label:'Impl'}] },
+    { name:'Autocomplete address', owners:['Marom'], bars:[{s:4,e:4,stage:'design',label:'Design'},{s:5,e:5,stage:'impl',label:'Impl'}] },
+    { name:'Baldar sync', owners:['Marom'], bars:[{s:3,e:3,stage:'discovery',label:'Discovery'},{s:4,e:4,stage:'devtest',label:'Dev/Test'},{s:5,e:5,stage:'impl',label:'Impl'}] },
+    { name:'Create Shipment', owners:['Danylo'], bars:[{s:4,e:4,stage:'discovery',label:'Discovery'},{s:5,e:6,stage:'devtest',label:'Dev/Test'},{s:7,e:7,stage:'impl',label:'Impl'}] },
+    { name:'LionWheel', owners:['Danylo','Eliav'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
+    { name:'Logisticare', owners:['Eliav','Danylo'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
+    { name:'FoodAppeal', owners:['Eliav','Danylo'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
+    { name:'Re-design API (stand-alone)', owners:['Eliav','Danylo'], bars:[{s:2,e:7,stage:'devtest',label:'Infra & Dev'},{s:8,e:8,stage:'impl',label:'Impl'}] },
+    { name:'Re-design Dashboard — Front End', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'}] },
+    { name:'Re-design Dashboard — Back End', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'}] }
+  ]}
+];
+var UNSCHEDULED = ['Customer feedback — no owner or dates set'];
+
+// ══════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════
+function ownersBg(owners){
+  if(!owners.length) return 'var(--text-muted)';
+  if(owners.length===1) return OWNER_VAR[owners[0]]||'var(--text-muted)';
+  return 'linear-gradient(90deg,'+(OWNER_VAR[owners[0]]||'#999')+' 50%,'+(OWNER_VAR[owners[1]]||'#999')+' 50%)';
+}
+function ownerDots(owners){
+  if(!owners.length) return '<span class="owners" style="font-style:italic;color:var(--text-muted);font-size:10.5px">TBD</span>';
+  return '<span class="owners">'+owners.map(function(o){ return '<span class="dot" title="'+o+'" style="background:'+(OWNER_VAR[o]||'#999')+'"></span>'; }).join('')+'</span>';
+}
+function curMonthIndex(){
+  var n=new Date(); var idx=(n.getFullYear()-2026)*12 + n.getMonth() - 5;  // Jun'26 = 0
+  return idx;
+}
+function curMonthFrac(){
+  var n=new Date(); var dim=new Date(n.getFullYear(), n.getMonth()+1, 0).getDate();
+  return (n.getDate()-1)/dim;
+}
+
+function renderAll(){
+  var now=new Date();
+  document.getElementById('subLine').textContent =
+    "Jun 2026 – Mar 2027 · month-level flow, colored by owner · bar intensity = stage · today: " +
+    now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  renderGantt();
+  renderActiveNow();
+  renderWorkload();
+  document.getElementById('unschedList').innerHTML = UNSCHEDULED.map(function(u){ return '<li>'+u+'</li>'; }).join('');
+}
+
+function renderGantt(){
+  var g=document.getElementById('gantt'); g.innerHTML='';
+  var html='';
+  // header row
+  html += '<div class="col-head" style="grid-column:1;grid-row:1"></div>';
+  for(var m=0;m<10;m++) html += '<div class="col-head" style="grid-column:'+(m+2)+';grid-row:1">'+MONTHS[m]+'</div>';
+  var row=2, maxRow=1;
+  TRACKS.forEach(function(tr){
+    html += '<div class="track-title" style="grid-row:'+row+'">'+tr.title+'</div>'; row++;
+    tr.items.forEach(function(it){
+      html += '<div class="row-label" style="grid-row:'+row+'">'+it.name+ownerDots(it.owners)+'</div>';
+      it.bars.forEach(function(b){
+        var cls='bar level-'+b.stage+(b.flag==='holiday'?' holiday':'');
+        var style='grid-column:'+(b.s+2)+'/'+(b.e+3)+';grid-row:'+row+';';
+        if(b.stage==='discovery') style+='border-color:'+(it.owners.length?(OWNER_VAR[it.owners[0]]||'var(--text-muted)'):'var(--text-muted)')+';';
+        else style+='background:'+ownersBg(it.owners)+';';
+        html += '<div class="'+cls+'" style="'+style+'" title="'+it.owners.join(', ')+'">'+b.label+'</div>';
+      });
+      row++;
+    });
+  });
+  maxRow=row-1;
+  g.innerHTML=html;
+
+  // overlays (after grid so heights are known)
+  var COLW=85, LABELW=235;
+  var freeze=document.createElement('div');
+  freeze.className='overlay freeze-band';
+  freeze.style.left=(LABELW+FREEZE.s*COLW)+'px';
+  freeze.style.width=((FREEZE.e-FREEZE.s+1)*COLW)+'px';
+  freeze.innerHTML='<div class="freeze-label" style="left:6px">Ops freeze window</div>';
+  g.appendChild(freeze);
+
+  var ci=curMonthIndex();
+  if(ci>=0 && ci<=9){
+    var t=document.createElement('div'); t.className='overlay today-line';
+    t.style.left=(LABELW + (ci+curMonthFrac())*COLW)+'px';
+    t.innerHTML='<div class="today-label">Today</div>';
+    g.appendChild(t);
+  }
+}
+
+function renderActiveNow(){
+  var ci=curMonthIndex(), grid=document.getElementById('activeGrid');
+  var active=[];
+  TRACKS.forEach(function(tr){ tr.items.forEach(function(it){
+    var bar=null;
+    it.bars.forEach(function(b){ if(ci>=b.s && ci<=b.e) bar=b; });
+    if(bar) active.push({name:it.name, owners:it.owners, stage:bar.label});
+  }); });
+  document.getElementById('activeTitle').textContent='🟢 בעבודה כרגע ('+active.length+') — '+ (MONTHS[ci]||'');
+  if(!active.length){ grid.innerHTML='<div style="font-size:12px;color:var(--text-muted)">אין פריטים פעילים בחודש הנוכחי.</div>'; return; }
+  grid.innerHTML=active.map(function(a){
+    var owners = a.owners.length ? a.owners.map(function(o){ return '<span class="dot" style="background:'+(OWNER_VAR[o]||'#999')+'"></span>'+o; }).join(' , ') : '<span style="font-style:italic;color:var(--text-muted)">ללא בעלים</span>';
+    return '<div class="active-card"><div class="an-name">'+a.name+'</div>'+
+           '<div class="an-meta">'+owners+' <span class="an-stage">'+a.stage+'</span></div></div>';
+  }).join('');
+}
+
+function renderWorkload(){
+  var counts={}, ownersOrder=['Eliav','Danylo','Marom','Tomer'], totalOwned=0;
+  TRACKS.forEach(function(tr){ tr.items.forEach(function(it){
+    if(it.owners.length) totalOwned++;
+    it.owners.forEach(function(o){ counts[o]=(counts[o]||0)+1; });
+  }); });
+  var max=Math.max.apply(null, ownersOrder.map(function(o){return counts[o]||0;}).concat([1]));
+  document.getElementById('workloadTitle').textContent="Who's carrying the load (of "+totalOwned+" owned initiatives)";
+  document.getElementById('workloadBars').innerHTML = ownersOrder.map(function(o){
+    var c=counts[o]||0, w=Math.round(c/max*100);
+    return '<div class="wbar-row"><div class="wbar-name">'+o+'</div>'+
+      '<div class="wbar-track"><div class="wbar-fill" style="width:'+w+'%;background:'+OWNER_VAR[o]+'"><span>'+c+'</span></div></div></div>';
+  }).join('');
+}
+</script>
+</body>
+</html>
