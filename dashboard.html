@@ -207,6 +207,7 @@
   <div class="hd-sep"></div>
   <span class="hd-label">לוח בקרה — משימות ותקלות</span>
   <div class="hd-right">
+    <a class="form-link" id="roadmapLink" href="./roadmap.html" style="display:none">🗺️ מפת דרכים</a>
     <a class="form-link" href="./index.html">+ בקשה חדשה</a>
     <span class="last-upd" id="lastUpd"></span>
     <button class="refresh-btn" id="refreshBtn">
@@ -335,7 +336,7 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbycCTON0QM5wPDbVK27XWml-CFdZXlt_y_jDvQnMwvOmCPkgNsh1e9CCtQPm72pF9-EZw/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi3PP3Pl5CzKod0cKSaDXT34w4M5qm4IMfz9Wt33y2IKHORxzYhuZaxh_n7EF4VDvzrg/exec';
 var CLIENT_ID  = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
 
 var ALLOWLIST = ['eliavo@cargo.co.il','amitd@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','ellison@cargo.co.il','liata@cargo.co.il','nofary@cargo.co.il','talib@cargo.co.il','shlomi.t@cargo.co.il','nicole.mr@cargo.co.il','tomer@benmoshe.com','sagivd@cargo.co.il','adij@cargo.co.il'];
@@ -425,6 +426,11 @@ function showDash() {
   document.getElementById('gate').style.display = 'none';
   document.getElementById('hdr').style.display = 'flex';
   document.getElementById('main').style.display = 'block';
+  // roadmap link — only for users allowed on the roadmap
+  var ROADMAP_ALLOW = ['ellison@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','eliavo@cargo.co.il','maroma@cargo.co.il'];
+  if (ROADMAP_ALLOW.indexOf(MY_EMAIL) > -1) {
+    var rl = document.getElementById('roadmapLink'); if (rl) rl.style.display = '';
+  }
   loadData();                          // table first — most important
   setTimeout(loadSprint, 400);         // sprint shortly after (usually cached → instant)
 }
