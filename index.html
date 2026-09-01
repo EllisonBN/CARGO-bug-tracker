@@ -252,6 +252,7 @@
   <div class="hd-sep"></div>
   <span class="hd-label">מערכת ניהול משימות ותקלות</span>
   <div class="hd-right">
+    <a class="dash-link" id="roadmapLink" href="./roadmap.html" style="display:none">🗺️ מפת דרכים</a>
     <a class="dash-link" href="./dashboard.html">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
       לוח בקרה
@@ -440,7 +441,7 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbycCTON0QM5wPDbVK27XWml-CFdZXlt_y_jDvQnMwvOmCPkgNsh1e9CCtQPm72pF9-EZw/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi3PP3Pl5CzKod0cKSaDXT34w4M5qm4IMfz9Wt33y2IKHORxzYhuZaxh_n7EF4VDvzrg/exec';
 const CLIENT_ID  = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
 
 const ALLOWLIST = ['eliavo@cargo.co.il','amitd@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','ellison@cargo.co.il','liata@cargo.co.il','nofary@cargo.co.il','talib@cargo.co.il','shlomi.t@cargo.co.il','nicole.mr@cargo.co.il','tomer@benmoshe.com','sagivd@cargo.co.il','adij@cargo.co.il'];
@@ -482,6 +483,11 @@ function acceptLogin(token){
   document.getElementById('gorumYozem').value = MY_NAME;   // auto-fill initiator
   document.getElementById('gate').style.display = 'none';
   saveAuth(token);
+  // roadmap link — only for roadmap-allowed users
+  var ROADMAP_ALLOW = ['ellison@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','eliavo@cargo.co.il','maroma@cargo.co.il'];
+  if (ROADMAP_ALLOW.indexOf(MY_EMAIL) > -1) {
+    var rl = document.getElementById('roadmapLink'); if (rl) rl.style.display = '';
+  }
   return true;
 }
 
