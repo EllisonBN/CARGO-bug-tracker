@@ -17,6 +17,9 @@
   .viz-root { background:var(--page); padding:28px 24px 40px; }
   .wrap { max-width:1180px; margin:0 auto; }
   h1 { font-size:19px; color:var(--text-primary); margin:0 0 4px; font-weight:700; }
+  .rm-nav { display:flex; gap:16px; margin-bottom:14px; }
+  .rm-back { font-size:13px; font-weight:600; color:var(--c-eliav); text-decoration:none; }
+  .rm-back:hover { text-decoration:underline; }
   .sub { font-size:13px; color:var(--text-secondary); margin:0 0 20px; }
 
   .legend { display:flex; flex-wrap:wrap; gap:18px; align-items:center; margin-bottom:18px; padding:12px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:10px; }
@@ -97,6 +100,10 @@
 
 <div class="viz-root" id="main" style="display:none">
   <div class="wrap">
+    <div class="rm-nav">
+      <a class="rm-back" href="./dashboard.html">← לוח בקרה</a>
+      <a class="rm-back" href="./index.html">+ בקשה חדשה</a>
+    </div>
     <h1>Cargo — Weekly Delivery Roadmap</h1>
     <p class="sub" id="subLine"></p>
 
@@ -149,8 +156,10 @@
 //  ACCESS  (gated to these 5; edits happen via request)
 // ══════════════════════════════════════════════════════
 var CLIENT_ID = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi3PP3Pl5CzKod0cKSaDXT34w4M5qm4IMfz9Wt33y2IKHORxzYhuZaxh_n7EF4VDvzrg/exec';
 var ALLOWLIST = ['ellison@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','eliavo@cargo.co.il','maroma@cargo.co.il'];
 var AUTH_KEY  = 'cargo_gauth';
+var ID_TOKEN  = '';
 
 function decodeJwt(t){ try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e){ return {}; } }
 function tokenValid(p){ if(!p||!p.email) return false; if(ALLOWLIST.indexOf(String(p.email).toLowerCase())===-1) return false; if(p.exp && p.exp*1000<Date.now()) return false; return true; }
@@ -158,9 +167,10 @@ function acceptLogin(token){
   var p = decodeJwt(token), email = String(p.email||'').toLowerCase();
   if(!tokenValid(p)){ try{localStorage.removeItem(AUTH_KEY);}catch(e){} document.getElementById('gErr').textContent = 'לחשבון '+(email||'')+' אין גישה למפת הדרכים.'; return false; }
   try{ localStorage.setItem(AUTH_KEY, token); }catch(e){}
+  ID_TOKEN = token;
   document.getElementById('gate').style.display='none';
   document.getElementById('main').style.display='block';
-  renderAll();
+  loadRoadmap();
   return true;
 }
 function onGoogleCredential(resp){ var t=resp&&resp.credential; if(!t){document.getElementById('gErr').textContent='ההתחברות נכשלה';return;} acceptLogin(t); }
@@ -172,158 +182,157 @@ function initGoogle(){ if(!(window.google&&google.accounts&&google.accounts.id))
 tryStoredAuth(); initGoogle();
 
 // ══════════════════════════════════════════════════════
-//  ROADMAP DATA  (edit here on request → re-upload)
-//  months index: 0=Jun'26 … 9=Mar'27.  bar {s,e} = inclusive month indices.
-//  stage: discovery | design | devtest | impl.  flag: 'holiday' optional.
+//  LIVE DATA  (from the "Roadmap" tab via token-gated backend)
+//  Edit the tab in Google Sheets → refresh this page.
 // ══════════════════════════════════════════════════════
-var MONTHS = ["Jun '26","Jul '26","Aug '26","Sep '26","Oct '26","Nov '26","Dec '26","Jan '27","Feb '27","Mar '27"];
 var OWNER_VAR = { 'Eliav':'var(--c-eliav)','Danylo':'var(--c-danylo)','Marom':'var(--c-marom)','Tomer':'var(--c-tomer)' };
-var FREEZE = { s:3, e:6 };   // Sep–Dec ops freeze
+var EXTRA_PALETTE = ['#7c3aed','#0891b2','#be185d','#4d7c0f','#b45309','#0f766e'];
+var extraColors = {};
+function ownerColor(name){
+  if(OWNER_VAR[name]) return OWNER_VAR[name];
+  if(!extraColors[name]) extraColors[name] = EXTRA_PALETTE[Object.keys(extraColors).length % EXTRA_PALETTE.length];
+  return extraColors[name];
+}
+var SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function ymToAbs(s){ var m=String(s||'').match(/^(\d{4})-(\d{1,2})/); return m ? (+m[1])*12 + (+m[2]-1) : null; }
+function absLabel(abs){ var y=Math.floor(abs/12), mo=abs%12; return SHORT[mo]+" '"+String(y).slice(-2); }
+function nowAbs(){ var n=new Date(); return n.getFullYear()*12 + n.getMonth(); }
 
-var TRACKS = [
-  { title:'Design queue — product (serialized one at a time)', items:[
-    { name:'Dashboard – urgent fix', owners:['Danylo','Eliav'], bars:[{s:0,e:1,stage:'impl',label:'Impl'}] },
-    { name:'Marom onboarding', owners:['Marom','Eliav'], bars:[{s:1,e:1,stage:'impl',label:'Impl'}] },
-    { name:'IHERB – ICL', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'impl',label:'Impl'}] },
-    { name:'USHOP-ICL', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'impl',label:'Impl'}] },
-    { name:'Columbia', owners:['Marom','Eliav'], bars:[{s:2,e:2,stage:'design',label:'Design'},{s:3,e:3,stage:'impl',label:'Impl',flag:'holiday'}] },
-    { name:'IHERB self-service dashboard', owners:['Danylo','Eliav'], bars:[{s:3,e:3,stage:'impl',label:'Impl'}] },
-    { name:'Shopify App', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'},{s:4,e:4,stage:'impl',label:'Impl'}] }
-  ]},
-  { title:'Infrastructure migration — Cloudways → GCP, GitHub → Cargo Enterprise', items:[
-    { name:'New-API migration to GCP', owners:['Eliav','Danylo'], bars:[{s:1,e:1,stage:'devtest',label:'Dev/Test'},{s:2,e:2,stage:'impl',label:'Impl'}] },
-    { name:'Reduce Cloudways servers', owners:['Eliav'], bars:[{s:1,e:1,stage:'impl',label:'Impl'}] },
-    { name:'Migrate Cloudflare', owners:['Danylo','Eliav'], bars:[{s:2,e:2,stage:'impl',label:'Migrate',flag:'holiday'}] },
-    { name:'Migrate Shopify app to GCP', owners:['Eliav'], bars:[{s:3,e:3,stage:'impl',label:'Migrate'}] },
-    { name:'Migrate Konimbo to GCP', owners:['Eliav'], bars:[{s:4,e:4,stage:'impl',label:'Migrate'}] },
-    { name:'Migrate Old API to GCP', owners:['Eliav'], bars:[{s:4,e:4,stage:'devtest',label:'Dev/Test'},{s:5,e:5,stage:'impl',label:'Impl'}] },
-    { name:'Migrate landing page to GCP', owners:['Eliav'], bars:[{s:5,e:5,stage:'impl',label:'Migrate'}] },
-    { name:'GitHub → Cargo Enterprise', owners:['Eliav','Marom'], bars:[{s:2,e:2,stage:'devtest',label:'Dev/Test'},{s:3,e:3,stage:'impl',label:'Impl'}] },
-    { name:'Stream to BigQuery', owners:['Tomer'], bars:[{s:3,e:3,stage:'design',label:'Design'}] },
-    { name:'Change label creation', owners:[], bars:[{s:6,e:6,stage:'impl',label:'Impl'}] }
-  ]},
-  { title:'Platform / software infrastructure', items:[
-    { name:'Shipment-request logger', owners:['Eliav'], bars:[{s:2,e:2,stage:'discovery',label:'Discovery'},{s:3,e:3,stage:'impl',label:'Impl'}] },
-    { name:'Logging-request monitor', owners:['Eliav'], bars:[{s:2,e:2,stage:'discovery',label:'Discovery'},{s:3,e:4,stage:'impl',label:'Impl'}] },
-    { name:'Address validation (polygons)', owners:['Marom','Eliav'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'},{s:4,e:4,stage:'impl',label:'Impl'}] },
-    { name:'Autocomplete address', owners:['Marom'], bars:[{s:4,e:4,stage:'design',label:'Design'},{s:5,e:5,stage:'impl',label:'Impl'}] },
-    { name:'Baldar sync', owners:['Marom'], bars:[{s:3,e:3,stage:'discovery',label:'Discovery'},{s:4,e:4,stage:'devtest',label:'Dev/Test'},{s:5,e:5,stage:'impl',label:'Impl'}] },
-    { name:'Create Shipment', owners:['Danylo'], bars:[{s:4,e:4,stage:'discovery',label:'Discovery'},{s:5,e:6,stage:'devtest',label:'Dev/Test'},{s:7,e:7,stage:'impl',label:'Impl'}] },
-    { name:'LionWheel', owners:['Danylo','Eliav'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
-    { name:'Logisticare', owners:['Eliav','Danylo'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
-    { name:'FoodAppeal', owners:['Eliav','Danylo'], bars:[{s:7,e:7,stage:'discovery',label:'Discovery'},{s:8,e:8,stage:'impl',label:'Impl'}] },
-    { name:'Re-design API (stand-alone)', owners:['Eliav','Danylo'], bars:[{s:2,e:7,stage:'devtest',label:'Infra & Dev'},{s:8,e:8,stage:'impl',label:'Impl'}] },
-    { name:'Re-design Dashboard — Front End', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'}] },
-    { name:'Re-design Dashboard — Back End', owners:['Danylo'], bars:[{s:3,e:3,stage:'devtest',label:'Dev/Test'}] }
-  ]}
-];
-var UNSCHEDULED = ['Customer feedback — no owner or dates set'];
+var STATE = null;   // { tracks:[{title,items:[{name,owners,bars:[{sAbs,eAbs,stage,label,flag}]}]}], minAbs, maxAbs, unscheduled:[] }
+
+function buildState(rows){
+  var trackOrder=[], trackMap={}, unsched=[], minAbs=null, maxAbs=null;
+  rows.forEach(function(r){
+    if(!r.initiative) return;
+    var sAbs=ymToAbs(r.start), eAbs=ymToAbs(r.end);
+    if(sAbs===null || eAbs===null){ if(unsched.indexOf(r.initiative)===-1) unsched.push(r.initiative); return; }
+    if(eAbs<sAbs) eAbs=sAbs;
+    if(minAbs===null||sAbs<minAbs) minAbs=sAbs;
+    if(maxAbs===null||eAbs>maxAbs) maxAbs=eAbs;
+    var track=r.track||'—';
+    if(!trackMap[track]){ trackMap[track]={title:track,itemOrder:[],itemMap:{}}; trackOrder.push(track); }
+    var tr=trackMap[track];
+    if(!tr.itemMap[r.initiative]){ tr.itemMap[r.initiative]={name:r.initiative,owners:r.owners||[],bars:[]}; tr.itemOrder.push(r.initiative); }
+    var it=tr.itemMap[r.initiative];
+    if((r.owners||[]).length) it.owners=r.owners;
+    it.bars.push({ sAbs:sAbs, eAbs:eAbs, stage:(r.stage||'impl'), label:(r.label||r.stage||''), flag:(r.flag||'') });
+  });
+  var tracks=trackOrder.map(function(t){ var tr=trackMap[t]; return { title:tr.title, items:tr.itemOrder.map(function(n){ return tr.itemMap[n]; }) }; });
+  return { tracks:tracks, minAbs:minAbs, maxAbs:maxAbs, unscheduled:unsched };
+}
+
+function loadRoadmap(){
+  var g=document.getElementById('gantt');
+  g.innerHTML='<div style="padding:24px;color:var(--text-muted);font-size:13px">טוען מפת דרכים…</div>';
+  fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'getRoadmap', idToken: ID_TOKEN }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.success){ g.innerHTML='<div style="padding:24px;color:#b91c1c;font-size:13px">'+(d.error||'שגיאה בטעינה')+'</div>'; return; }
+      if(!d.rows || !d.rows.length){ g.innerHTML='<div style="padding:24px;color:var(--text-muted);font-size:13px">לשונית "Roadmap" ריקה. הריצו setupRoadmapTab ב-Apps Script כדי לאכלס אותה.</div>'; return; }
+      STATE=buildState(d.rows);
+      renderAll();
+    })
+    .catch(function(e){ g.innerHTML='<div style="padding:24px;color:#b91c1c;font-size:13px">שגיאת רשת: '+e.message+'</div>'; });
+}
 
 // ══════════════════════════════════════════════════════
-//  RENDER
+//  RENDER  (dynamic month range from data)
 // ══════════════════════════════════════════════════════
 function ownersBg(owners){
   if(!owners.length) return 'var(--text-muted)';
-  if(owners.length===1) return OWNER_VAR[owners[0]]||'var(--text-muted)';
-  return 'linear-gradient(90deg,'+(OWNER_VAR[owners[0]]||'#999')+' 50%,'+(OWNER_VAR[owners[1]]||'#999')+' 50%)';
+  if(owners.length===1) return ownerColor(owners[0]);
+  return 'linear-gradient(90deg,'+ownerColor(owners[0])+' 50%,'+ownerColor(owners[1])+' 50%)';
 }
 function ownerDots(owners){
   if(!owners.length) return '<span class="owners" style="font-style:italic;color:var(--text-muted);font-size:10.5px">TBD</span>';
-  return '<span class="owners">'+owners.map(function(o){ return '<span class="dot" title="'+o+'" style="background:'+(OWNER_VAR[o]||'#999')+'"></span>'; }).join('')+'</span>';
-}
-function curMonthIndex(){
-  var n=new Date(); var idx=(n.getFullYear()-2026)*12 + n.getMonth() - 5;  // Jun'26 = 0
-  return idx;
-}
-function curMonthFrac(){
-  var n=new Date(); var dim=new Date(n.getFullYear(), n.getMonth()+1, 0).getDate();
-  return (n.getDate()-1)/dim;
+  return '<span class="owners">'+owners.map(function(o){ return '<span class="dot" title="'+o+'" style="background:'+ownerColor(o)+'"></span>'; }).join('')+'</span>';
 }
 
 function renderAll(){
+  if(!STATE) return;
   var now=new Date();
   document.getElementById('subLine').textContent =
-    "Jun 2026 – Mar 2027 · month-level flow, colored by owner · bar intensity = stage · today: " +
+    absLabel(STATE.minAbs)+" – "+absLabel(STATE.maxAbs)+" · month-level flow, colored by owner · bar intensity = stage · today: " +
     now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  renderGantt();
-  renderActiveNow();
-  renderWorkload();
-  document.getElementById('unschedList').innerHTML = UNSCHEDULED.map(function(u){ return '<li>'+u+'</li>'; }).join('');
+  renderGantt(); renderActiveNow(); renderWorkload();
+  var ul=document.getElementById('unschedList');
+  ul.innerHTML = STATE.unscheduled.length ? STATE.unscheduled.map(function(u){ return '<li>'+u+'</li>'; }).join('') : '<li style="color:var(--text-muted)">— אין —</li>';
 }
 
 function renderGantt(){
-  var g=document.getElementById('gantt'); g.innerHTML='';
+  var g=document.getElementById('gantt'), COLW=85, LABELW=235;
+  var n = STATE.maxAbs - STATE.minAbs + 1;
+  g.style.gridTemplateColumns = LABELW+'px repeat('+n+','+COLW+'px)';
+  g.style.width = (LABELW + n*COLW)+'px';
   var html='';
-  // header row
   html += '<div class="col-head" style="grid-column:1;grid-row:1"></div>';
-  for(var m=0;m<10;m++) html += '<div class="col-head" style="grid-column:'+(m+2)+';grid-row:1">'+MONTHS[m]+'</div>';
-  var row=2, maxRow=1;
-  TRACKS.forEach(function(tr){
+  for(var m=0;m<n;m++) html += '<div class="col-head" style="grid-column:'+(m+2)+';grid-row:1">'+absLabel(STATE.minAbs+m)+'</div>';
+  var row=2;
+  STATE.tracks.forEach(function(tr){
     html += '<div class="track-title" style="grid-row:'+row+'">'+tr.title+'</div>'; row++;
     tr.items.forEach(function(it){
       html += '<div class="row-label" style="grid-row:'+row+'">'+it.name+ownerDots(it.owners)+'</div>';
       it.bars.forEach(function(b){
+        var cs=(b.sAbs-STATE.minAbs)+2, ce=(b.eAbs-STATE.minAbs)+3;
         var cls='bar level-'+b.stage+(b.flag==='holiday'?' holiday':'');
-        var style='grid-column:'+(b.s+2)+'/'+(b.e+3)+';grid-row:'+row+';';
-        if(b.stage==='discovery') style+='border-color:'+(it.owners.length?(OWNER_VAR[it.owners[0]]||'var(--text-muted)'):'var(--text-muted)')+';';
+        var style='grid-column:'+cs+'/'+ce+';grid-row:'+row+';';
+        if(b.stage==='discovery') style+='border-color:'+(it.owners.length?ownerColor(it.owners[0]):'var(--text-muted)')+';';
         else style+='background:'+ownersBg(it.owners)+';';
         html += '<div class="'+cls+'" style="'+style+'" title="'+it.owners.join(', ')+'">'+b.label+'</div>';
       });
       row++;
     });
   });
-  maxRow=row-1;
   g.innerHTML=html;
 
-  // overlays (after grid so heights are known)
-  var COLW=85, LABELW=235;
-  var freeze=document.createElement('div');
-  freeze.className='overlay freeze-band';
-  freeze.style.left=(LABELW+FREEZE.s*COLW)+'px';
-  freeze.style.width=((FREEZE.e-FREEZE.s+1)*COLW)+'px';
-  freeze.innerHTML='<div class="freeze-label" style="left:6px">Ops freeze window</div>';
-  g.appendChild(freeze);
-
-  var ci=curMonthIndex();
-  if(ci>=0 && ci<=9){
+  // overlays
+  var absSep=2026*12+8, absDec=2026*12+11;
+  var fs=Math.max(absSep,STATE.minAbs), fe=Math.min(absDec,STATE.maxAbs);
+  if(fe>=fs){
+    var f=document.createElement('div'); f.className='overlay freeze-band';
+    f.style.left=(LABELW+(fs-STATE.minAbs)*COLW)+'px'; f.style.width=((fe-fs+1)*COLW)+'px';
+    f.innerHTML='<div class="freeze-label" style="left:6px">Ops freeze window</div>';
+    g.appendChild(f);
+  }
+  var na=nowAbs();
+  if(na>=STATE.minAbs && na<=STATE.maxAbs){
+    var dd=new Date(), dim=new Date(dd.getFullYear(),dd.getMonth()+1,0).getDate(), frac=(dd.getDate()-1)/dim;
     var t=document.createElement('div'); t.className='overlay today-line';
-    t.style.left=(LABELW + (ci+curMonthFrac())*COLW)+'px';
+    t.style.left=(LABELW+((na-STATE.minAbs)+frac)*COLW)+'px';
     t.innerHTML='<div class="today-label">Today</div>';
     g.appendChild(t);
   }
 }
 
 function renderActiveNow(){
-  var ci=curMonthIndex(), grid=document.getElementById('activeGrid');
-  var active=[];
-  TRACKS.forEach(function(tr){ tr.items.forEach(function(it){
-    var bar=null;
-    it.bars.forEach(function(b){ if(ci>=b.s && ci<=b.e) bar=b; });
+  var na=nowAbs(), grid=document.getElementById('activeGrid'), active=[];
+  STATE.tracks.forEach(function(tr){ tr.items.forEach(function(it){
+    var bar=null; it.bars.forEach(function(b){ if(na>=b.sAbs && na<=b.eAbs) bar=b; });
     if(bar) active.push({name:it.name, owners:it.owners, stage:bar.label});
   }); });
-  document.getElementById('activeTitle').textContent='🟢 בעבודה כרגע ('+active.length+') — '+ (MONTHS[ci]||'');
+  document.getElementById('activeTitle').textContent='🟢 בעבודה כרגע ('+active.length+') — '+ absLabel(na);
   if(!active.length){ grid.innerHTML='<div style="font-size:12px;color:var(--text-muted)">אין פריטים פעילים בחודש הנוכחי.</div>'; return; }
   grid.innerHTML=active.map(function(a){
-    var owners = a.owners.length ? a.owners.map(function(o){ return '<span class="dot" style="background:'+(OWNER_VAR[o]||'#999')+'"></span>'+o; }).join(' , ') : '<span style="font-style:italic;color:var(--text-muted)">ללא בעלים</span>';
-    return '<div class="active-card"><div class="an-name">'+a.name+'</div>'+
-           '<div class="an-meta">'+owners+' <span class="an-stage">'+a.stage+'</span></div></div>';
+    var owners = a.owners.length ? a.owners.map(function(o){ return '<span class="dot" style="background:'+ownerColor(o)+'"></span>'+o; }).join(' , ') : '<span style="font-style:italic;color:var(--text-muted)">ללא בעלים</span>';
+    return '<div class="active-card"><div class="an-name">'+a.name+'</div><div class="an-meta">'+owners+' <span class="an-stage">'+a.stage+'</span></div></div>';
   }).join('');
 }
 
 function renderWorkload(){
-  var counts={}, ownersOrder=['Eliav','Danylo','Marom','Tomer'], totalOwned=0;
-  TRACKS.forEach(function(tr){ tr.items.forEach(function(it){
+  var counts={}, order=[], totalOwned=0;
+  STATE.tracks.forEach(function(tr){ tr.items.forEach(function(it){
     if(it.owners.length) totalOwned++;
-    it.owners.forEach(function(o){ counts[o]=(counts[o]||0)+1; });
+    it.owners.forEach(function(o){ if(counts[o]===undefined){counts[o]=0; order.push(o);} counts[o]++; });
   }); });
-  var max=Math.max.apply(null, ownersOrder.map(function(o){return counts[o]||0;}).concat([1]));
+  order.sort(function(a,b){ return counts[b]-counts[a]; });
+  var max=Math.max.apply(null, order.map(function(o){return counts[o];}).concat([1]));
   document.getElementById('workloadTitle').textContent="Who's carrying the load (of "+totalOwned+" owned initiatives)";
-  document.getElementById('workloadBars').innerHTML = ownersOrder.map(function(o){
-    var c=counts[o]||0, w=Math.round(c/max*100);
-    return '<div class="wbar-row"><div class="wbar-name">'+o+'</div>'+
-      '<div class="wbar-track"><div class="wbar-fill" style="width:'+w+'%;background:'+OWNER_VAR[o]+'"><span>'+c+'</span></div></div></div>';
+  document.getElementById('workloadBars').innerHTML = order.map(function(o){
+    var c=counts[o], w=Math.round(c/max*100);
+    return '<div class="wbar-row"><div class="wbar-name">'+o+'</div><div class="wbar-track"><div class="wbar-fill" style="width:'+w+'%;background:'+ownerColor(o)+'"><span>'+c+'</span></div></div></div>';
   }).join('');
 }
+
 </script>
 </body>
 </html>
