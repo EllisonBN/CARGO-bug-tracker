@@ -36,6 +36,9 @@
   .tl{display:grid; grid-template-columns:196px 1fr; gap:8px; align-items:center; margin-bottom:6px}
   .mhead{display:grid; grid-template-columns:repeat(5,1fr)}
   .mhead div{text-align:center; font-size:12px; font-weight:800; color:var(--mute); padding:4px 0}
+  .mhead div.nowhead{color:#fff; background:#0f2744; border-radius:7px}
+  .mc.nowcol{background:#EAF3FB; border-radius:8px; box-shadow:inset 0 0 0 1px #BBDDF5}
+  #nowBanner{display:inline-block; background:#0f2744; color:#fff; font-weight:800; font-size:13px; padding:8px 16px; border-radius:9px; margin-bottom:14px}
   .tl.headrow{margin-bottom:8px}
   .wlabel{font-size:12.5px; font-weight:800; display:flex; flex-direction:column; gap:2px;
     background:var(--soft); border-radius:8px; padding:8px 10px}
@@ -153,6 +156,7 @@
   <div class="view" id="v-months">
     <h2 class="pt" style="font-size:15px;margin:0 0 10px">תצוגה לפי חודשים</h2>
     <p class="hint">הקו האופקי מחבר את שלבי <b>אותה משימה</b> לאורך הזמן. כל צומת בצבע המבצע, Live בשחור, שער 20.10 בכתום.</p>
+    <div id="nowBanner" style="display:none"></div>
     <div class="tl headrow"><div></div><div class="mhead"><div>ספטמבר</div><div>אוקטובר</div><div>נובמבר</div><div>דצמבר</div><div>ינואר</div></div></div>
     <div id="months"></div>
     <div class="legend" id="lg1"></div>
@@ -293,6 +297,32 @@ function renderMonths(){
     track.innerHTML=conn+'<div class="cells">'+cells+'</div>';
     row.appendChild(track); mroot.appendChild(row);
   });
+  markNow();
+}
+// highlight current month (plan runs Sep 2026 .. Jan 2027)
+function markNow(){
+  var base = 2026*12 + 8;           // ספטמבר 2026 (חודש 8 ב-0-based)
+  var now = new Date();
+  var idx = (now.getFullYear()*12 + now.getMonth()) - base;
+  var names = ['ספטמבר 2026','אוקטובר 2026','נובמבר 2026','דצמבר 2026','ינואר 2027'];
+  var heads = document.querySelectorAll('#v-months .mhead div');
+  heads.forEach(function(h){ h.classList.remove('nowhead'); });
+  document.querySelectorAll('#months .mc').forEach(function(mc){ mc.classList.remove('nowcol'); });
+  var banner = document.getElementById('nowBanner');
+  if(idx >= 0 && idx < 5){
+    if(heads[idx]) heads[idx].classList.add('nowhead');
+    document.querySelectorAll('#months .cells').forEach(function(cells){
+      var mcs = cells.querySelectorAll('.mc'); if(mcs[idx]) mcs[idx].classList.add('nowcol');
+    });
+    banner.textContent = '📍 אנחנו כעת ב' + names[idx];
+    banner.style.display = '';
+  } else if(idx < 0){
+    banner.textContent = '📍 התוכנית מתחילה בספטמבר 2026';
+    banner.style.display = '';
+  } else {
+    banner.textContent = '📍 התקופה בתוכנית הסתיימה (ינואר 2027)';
+    banner.style.display = '';
+  }
 }
 function renderTask(){
   var troot=document.getElementById('task'); troot.innerHTML='';
