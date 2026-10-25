@@ -38,6 +38,8 @@
   .mhead div{text-align:center; font-size:12px; font-weight:800; color:var(--mute); padding:4px 0}
   .mhead div.nowhead{color:#fff; background:#0f2744; border-radius:7px}
   .mc.nowcol{background:#EAF3FB; border-radius:8px; box-shadow:inset 0 0 0 1px #BBDDF5}
+  .node.editable{cursor:pointer; transition:box-shadow .12s}
+  .node.editable:hover{box-shadow:0 0 0 2px #0284C7}
   #nowBanner{display:inline-block; background:#0f2744; color:#fff; font-weight:800; font-size:13px; padding:8px 16px; border-radius:9px; margin-bottom:14px}
   .tl.headrow{margin-bottom:8px}
   .wlabel{font-size:12.5px; font-weight:800; display:flex; flex-direction:column; gap:2px;
@@ -279,10 +281,11 @@ function renderAll(){
 }
 function renderMonths(){
   var mroot=document.getElementById('months'); mroot.innerHTML='';
-  G.forEach(function(gr){
+  G.forEach(function(gr, gi){
     var row=document.createElement('div'); row.className='tl';
     var lab=document.createElement('div'); lab.className='wlabel';
-    lab.innerHTML=esc(gr.g)+'<span class="r">'+esc(gr.r)+'</span>'; row.appendChild(lab);
+    var addHint = IS_EDITOR ? '<span class="editctrl" title="הוסף משימה לקבוצה" onclick="addToGroup('+gi+')">＋</span>' : '';
+    lab.innerHTML=esc(gr.g)+addHint+'<span class="r">'+esc(gr.r)+'</span>'; row.appendChild(lab);
     var track=document.createElement('div'); track.className='track';
     if(gr.span){ track.innerHTML='<div class="cells"><div class="spanbar">'+esc(gr.span)+'</div></div>'; row.appendChild(track); mroot.appendChild(row); return; }
     var idx=gr.t.map(function(x){return x.mi;}).filter(function(i){return i>=0;});
@@ -290,8 +293,13 @@ function renderMonths(){
     if(idx.length && e>s){ var right=(s*20+10), left=((4-e)*20+10); conn='<div class="connector" style="right:'+right+'%;left:'+left+'%;background:'+(C[gr.color]||'#999')+'"></div>'; }
     var cells='';
     for(var m=0;m<5;m++){
-      var items=gr.t.filter(function(x){return x.mi===m;});
-      var nodes=items.map(function(it){ var cls=it.gate?'gatenode':(it.exec[0]||'eliav'); return '<span class="node '+cls+'">'+esc(it.short||it.name)+'</span>'; }).join('');
+      var nodes='';
+      gr.t.forEach(function(it, ti){
+        if(it.mi!==m) return;
+        var cls=it.gate?'gatenode':(it.exec[0]||'eliav');
+        var clickable = IS_EDITOR ? ' editable" onclick="editTask('+gi+','+ti+')" title="לחצי לעריכה' : '';
+        nodes+='<span class="node '+cls+clickable+'">'+esc(it.short||it.name)+'</span>';
+      });
       cells+='<div class="mc">'+nodes+'</div>';
     }
     track.innerHTML=conn+'<div class="cells">'+cells+'</div>';
@@ -323,6 +331,16 @@ function markNow(){
     banner.textContent = '📍 התקופה בתוכנית הסתיימה (ינואר 2027)';
     banner.style.display = '';
   }
+}
+function addToGroup(gi){
+  if(!IS_EDITOR) return;
+  editTask(null,null);
+  var g=G[gi]; if(!g) return;
+  document.getElementById('pGroup').value=g.g||'';
+  document.getElementById('pResp').value=g.r||'';
+  document.getElementById('pColor').value=g.color||'eliav';
+  document.getElementById('pGowner').value=g.own||'';
+  document.getElementById('pName').focus();
 }
 function renderTask(){
   var troot=document.getElementById('task'); troot.innerHTML='';
