@@ -336,11 +336,11 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVaKhKGJULYryPt7eN2NJYfBp4bWFAh1hCZQdSiz5sINm7Yj1M0PNyxGuMKFTsp1Tv9w/exec';
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwIH6fuhUtz1c4QlgmoeGoUSRwiAzmAoWyt_5EojCXwsH3R3kdUqBTvsV4w8n_jvsclzg/exec';
 var CLIENT_ID  = '226194803202-u651fh5gthbtm9s1fos44du7jbpmpsb9.apps.googleusercontent.com';
 
-var ALLOWLIST = ['eliavo@cargo.co.il','amitd@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','ellison@cargo.co.il','liata@cargo.co.il','nofary@cargo.co.il','talib@cargo.co.il','shlomi.t@cargo.co.il','nicole.mr@cargo.co.il','tomer@benmoshe.com','sagivd@cargo.co.il','adij@cargo.co.il','natalib@cargo.co.il','alons@cargo.co.il'];
-var ADMINS    = ['eliavo@cargo.co.il','amitd@cargo.co.il','ellison@cargo.co.il'];
+var ALLOWLIST = ['eliavo@cargo.co.il','amitd@cargo.co.il','lior@cargo.co.il','ram@cargo.co.il','ellison@cargo.co.il','liata@cargo.co.il','nofary@cargo.co.il','talib@cargo.co.il','shlomi.t@cargo.co.il','nicole.mr@cargo.co.il','tomer@benmoshe.com','sagivd@cargo.co.il','adij@cargo.co.il','natalib@cargo.co.il','alons@cargo.co.il','ofir.moyal@cargoaitech.com','idann@cargo.co.il','shaharp@cargo.co.il','shiran.d@cargo.co.il','lirazb@cargo.co.il'];
+var ADMINS    = ['eliavo@cargo.co.il','amitd@cargo.co.il','ellison@cargo.co.il','ofir.moyal@cargoaitech.com'];
 
 // identity (set after Google sign-in)
 var ID_TOKEN = '';
@@ -795,7 +795,7 @@ function submitStatusChange() {
 
 // ── handler-assignment popup (admins only) ─────────────
 var HPOP_TASK = null;
-var HANDLER_OPTS = ['Eliav','Amit','Danylo'];
+var HANDLER_OPTS = ['Eliav','Amit','Danylo','Ofir'];
 function openHandlerPopup(num){
   if (!IS_ADMIN) return;
   var t=null; for (var i=0;i<allTasks.length;i++){ if(String(allTasks[i].num)===String(num)){ t=allTasks[i]; break; } }
